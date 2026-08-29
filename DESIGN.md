@@ -303,17 +303,20 @@ different artifact.
   move to `tools/`, symlink `<prefix><name>` onto `~/.local/bin` (PATH), record in
   `wiki/tool-impact.jsonl`; reject archives + records. The review is resilient: a
   backend failure yields `skipped`, never blocking a human-authorized accept.
-- **Discovery** (T3, planned): a generated **Runme-compatible catalog**, surfaced
-  as a `wiki-garden-tools` skill, so the agent reaches for a tool instead of
-  rewriting it. Executable = canonical artifact; catalog = index + docs.
-- **Auto-mine** (T4, planned): mine traces for recurring scripts and propose
-  promoting them (the ambient path; manual capture is T1).
+- **Discovery** (`garden-tools-catalog`, auto-run on accept): regenerates a
+  Runme-compatible `tools/CATALOG.md` and a discoverable `wiki-garden-tools`
+  skill (`~/.claude/skills/`) whose description lists the installed tools, so the
+  agent reaches for a tool instead of rewriting it. Executable = canonical
+  artifact; catalog = index + docs.
+- **Auto-mine** (`garden-tool-mine` + `/garden-tool-mine`): scans unmined `raw/`
+  traces for recurring/reusable command-line ops and stages each by piping it
+  through `garden-tool` (same generalize + secret-strip + gate). Incremental via
+  a `tools/.mined.log` cursor; existing + rejected names skipped. The ambient
+  path; manual `/garden-tool` capture is the deliberate one.
 
-Tool build phases: **T1 ✅** capture + generalize + stage. **T2 ✅** gate
-(`garden-tool-gate`: human code review + static safety review + promote/install +
-`tool-impact.jsonl`; accept/reject/install validated deterministically, live
-review flagged a planted secret + unguarded `aws s3 rm`). **T3** catalog skill
-(Runme). **T4** auto-mine.
+Tool build phases: **T1 ✅** capture. **T2 ✅** gate. **T3 ✅** catalog skill
+(Runme; regenerated on accept). **T4 ✅** auto-mine (miner surfaced two AWS ECS
+ops from a trace and staged them through the generalizer; cursor idempotent).
 
 ## Evolution iteration (one run of `/garden-evolve`)
 

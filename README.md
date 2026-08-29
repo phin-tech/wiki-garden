@@ -112,6 +112,10 @@ Beside skills, Wiki Garden can promote an ephemeral script into a reusable CLI
   (static safety check) / `accept` / `reject --note`. You must read the code;
   accept installs `<prefix><name>` onto `~/.local/bin` and records to
   `tool-impact.jsonl`.
+- `garden-tool-mine` (`/garden-tool-mine`) — scan traces for recurring/reusable
+  commands and stage them as tool proposals automatically (the ambient path).
+- `garden-tools-catalog` — regenerate the `wiki-garden-tools` catalog skill from
+  installed tools (auto-runs on accept) so the agent discovers and reuses them.
 - Config in `~/.config/wiki-garden/config`: `tool_prefix` (default `gt-`),
   `tool_runtime` (default `bash`), and `tool_guidance` (short house-style note).
 - House-style overlays in `~/.config/wiki-garden/prompts/`: `tool.md` (always)

@@ -157,9 +157,12 @@ def cmd_accept(st: Path, args):
         if not link.exists():
             os.symlink(dest_exe, link)
             installed = str(link)
+    cat = _garden.write_tools_catalog(st)  # refresh the discoverable catalog skill
     print(json.dumps({"decision": "accepted", "tool": exe.name, "review": verdict,
-                      "activated_at": str(dest), "installed_at": installed or None}, indent=2))
+                      "activated_at": str(dest), "installed_at": installed or None,
+                      "catalog_tools": cat["count"]}, indent=2))
     log(f"accepted {exe.name}: promoted to tools/{'; on PATH: ' + installed if installed else ''}")
+    log(f"catalog refreshed — {cat['count']} tool(s): {', '.join(cat['names'])}")
 
 
 def cmd_reject(st: Path, args):
