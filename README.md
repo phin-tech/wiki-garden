@@ -10,9 +10,22 @@ architecture and how it maps to the paper.
 
 ## Layout
 
-- **This repo**: It has the code, its version controlled etc.
+- **This repo**: the code — a single `garden` CLI (a Typer app run via `uv`),
+  the `/wiki-garden` and `/garden-*` commands, the subagents, the skill, and the
+  `web/` UI. Version-controlled.
+- **Your store** (`~/.config/wiki-garden/` by default): everything the garden
+  accumulates for you. `garden` creates the skeleton on first run:
+  - `raw/` — captured traces (one task each)
+  - `wiki/patterns/` — consolidated patterns; `wiki/evolution-log.md`,
+    `wiki/skill-impact.jsonl`, `wiki/.processed.log`
+  - `proposals/` / `tool-proposals/` — staged, awaiting the gate
+  - `skills/` / `tools/` — accepted, promoted outputs
+  - `eval/stash/` + `eval/results/` — retro-eval material
 
-Your specific data is in `~/.config/wiki-garden/` where you can configure and track everything.
+The **brain is global** (one store per machine holds all your traces and wiki),
+but **outputs can be scoped**: an accepted skill or tool installs either globally
+(for you, everywhere) or into a specific project's `.claude/` (committable, shared
+with that repo) — see `--scope` under [Commands](#commands).
 
 
 ## Install
@@ -88,22 +101,26 @@ recommended.
   into `raw/` (the `wiki-garden` skill). Run it whenever a task taught you
   something worth keeping. With no argument it can also run consolidation.
 - `garden maintain` — compile unprocessed traces into `wiki/` patterns.
-  Standalone `uv` script (PEP 723), model-agnostic: set `WIKIGARDEN_LLM`
-  (`anthropic`|`openai`, the latter covers local vLLM/Ollama via
+  The LLM backend is pluggable via `--backend` / `$WIKIGARDEN_LLM`: the default
+  `claude` drives your local Claude Code login (**no API key**), or use
+  `anthropic` / `openai` (the latter covers local vLLM/Ollama via
   `WIKIGARDEN_LLM_BASE_URL`). `--dry-run` previews the patch-plan; `--plan-file`
   applies a given plan without calling any LLM. Also available inside Claude Code
   as the `wiki-maintainer` subagent.
 - `garden propose` — propose one atomic, reusable skill grounded in a wiki
   pattern, staged to `proposals/` for gating (never auto-activated). Same
-  `uv`/model-agnostic shape as `garden maintain` (`--dry-run`, `--plan-file`).
-  Also available as the `skill-proposer` subagent.
+  backend/flags as `garden maintain` (`--backend`, `--model`, `--dry-run`,
+  `--plan-file`). Also available as the `skill-proposer` subagent.
 - `garden evolve` (`/garden-evolve`) — one iteration: runs `maintain` then
   `propose` in sequence, forwarding flags (`--dry-run`, `--backend`, `--model`).
 - `garden gate` (`/garden-gate`) — review staged proposals and accept or
   reject: `list` / `show <name>` / `retro <name>` / `accept <name>` /
   `reject <name> --note`. Retro-eval is advisory (skips when `eval/stash/` is
-  empty); accept promotes `proposals/`→`skills/`, installs to `~/.claude/skills`,
-  and records the decision in `skill-impact.jsonl`.
+  empty) and records the decision in `wiki/skill-impact.jsonl`. `accept` promotes
+  `proposals/`→ the store's `skills/`; by default (`--scope global`) it also
+  symlinks the skill into `~/.claude/skills` (`--no-install` skips that), while
+  `--scope project [--project-dir <repo>]` writes it into that repo's
+  `.claude/skills/` instead so it can be committed and shared.
 
 ### Tools layer
 
@@ -118,8 +135,10 @@ Beside skills, Wiki Garden can promote an ephemeral script into a reusable CLI
 - `garden tool gate` (`/garden-tool-gate`) — review staged tools and accept or
   reject: `list` / `show <name>` (manifest + full source) / `review <name>`
   (static safety check) / `accept` / `reject --note`. You must read the code;
-  accept installs `<prefix><name>` onto `~/.local/bin` and records to
-  `tool-impact.jsonl`.
+  accept promotes the tool and records to `wiki/tool-impact.jsonl`. `--scope
+  global` (default) installs `<prefix><name>` onto `~/.local/bin` and refreshes
+  the catalog; `--scope project [--project-dir <repo>]` stages it under the
+  repo's `.claude/` instead. `--no-install` skips the PATH install.
 - `garden tool mine` (`/garden-tool-mine`) — scan traces for recurring/reusable
   commands and stage them as tool proposals automatically (the ambient path).
 - `garden tool catalog` — regenerate the `wiki-garden-tools` catalog skill from
@@ -133,5 +152,9 @@ Beside skills, Wiki Garden can promote an ephemeral script into a reusable CLI
 
 ## Status
 
-Early build. Implemented: store resolution + scaffolding. In progress: trace
-capture. See [DESIGN.md](DESIGN.md) build phases for the roadmap.
+The full loop works end to end: trace capture (`/wiki-garden`), consolidation
+(`garden maintain`), skill proposal (`garden propose`), the human gate
+(`garden gate`), the `evolve` sequencer, the tools layer (`capture` / `mine` /
+`gate` / `catalog`), the `garden tend` web UI, and global-vs-project scoping.
+Still open: the automatic session-end capture hook and a scheduled evolve run.
+See [DESIGN.md](DESIGN.md) build phases for the details.
