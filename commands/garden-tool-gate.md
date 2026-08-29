@@ -11,7 +11,7 @@ the user hasn't seen.
 ## 1. List staged tools
 
 ```bash
-garden-tool-gate list
+garden tool gate list
 ```
 
 If a name was given in `$ARGUMENTS`, gate just that one; otherwise walk each.
@@ -19,7 +19,7 @@ If a name was given in `$ARGUMENTS`, gate just that one; otherwise walk each.
 ## 2. Show the tool — manifest AND full source
 
 ```bash
-garden-tool-gate show <name>
+garden tool gate show <name>
 ```
 
 Present the source clearly and call out anything the reader must judge: what it
@@ -29,7 +29,7 @@ secrets, unguarded destructive ops, injection, correctness; it never runs the
 tool):
 
 ```bash
-garden-tool-gate review <name>
+garden tool gate review <name>
 ```
 
 ## 3. Ask the user to decide
@@ -47,12 +47,12 @@ generally-useful tool.
 
 ```bash
 # accept globally (default): store/tools + ~/.local/bin symlink + global catalog
-garden-tool-gate accept <name> --note "<optional>"
+garden tool gate accept <name> --note "<optional>"
 # accept for THIS project only: committed into <repo>/bin + <repo>/.claude (add --project-dir if not in the repo)
-garden-tool-gate accept <name> --scope project --note "<optional>"
+garden tool gate accept <name> --scope project --note "<optional>"
 
 # reject: records the decision (never re-mined) and archives the proposal
-garden-tool-gate reject <name> --note "<why>"
+garden tool gate reject <name> --note "<why>"
 ```
 
 Confirm the outcome: for an accept, tell the user the tool is on their PATH

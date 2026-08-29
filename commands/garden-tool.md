@@ -20,9 +20,9 @@ Confirm with the user which script they want to keep if it's ambiguous.
 Pass the script to the capture runner. Prefer a file; otherwise pipe it:
 
 ```bash
-garden-tool --from <path-to-script> --name "$ARGUMENTS"
+garden tool capture --from <path-to-script> --name "$ARGUMENTS"
 # or, if it's not in a file:
-printf '%s' "<the script>" | garden-tool --name "$ARGUMENTS"
+printf '%s' "<the script>" | garden tool capture --name "$ARGUMENTS"
 ```
 
 Use `--runtime bash|uv|node` only if the user wants to override their configured

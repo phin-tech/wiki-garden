@@ -10,7 +10,7 @@ proposal to the user and record their decision — never decide for them.
 ## 1. List what's staged
 
 ```bash
-garden-gate list
+garden gate list
 ```
 
 If a name was given in `$ARGUMENTS`, gate just that one; otherwise walk through
@@ -19,7 +19,7 @@ each staged proposal in turn.
 ## 2. Show the proposal
 
 ```bash
-garden-gate show <name>
+garden gate show <name>
 ```
 
 Present it clearly: the skill's purpose, the wiki pattern it traces back to
@@ -27,7 +27,7 @@ Present it clearly: the skill's purpose, the wiki pattern it traces back to
 (advisory — it only fails on `harmful`, and skips when `eval/stash/` is empty):
 
 ```bash
-garden-gate retro <name>
+garden gate retro <name>
 ```
 
 ## 3. Ask the user to decide
@@ -45,12 +45,12 @@ when it's broadly reusable.
 
 ```bash
 # accept globally (default): store/skills + a ~/.claude/skills symlink
-garden-gate accept <name> --note "<optional>"
+garden gate accept <name> --note "<optional>"
 # accept for THIS project only: committed into <repo>/.claude/skills (add --project-dir if not in the repo)
-garden-gate accept <name> --scope project --note "<optional>"
+garden gate accept <name> --scope project --note "<optional>"
 
 # reject: appends a rejected record (so it is never re-proposed) and archives it
-garden-gate reject <name> --note "<why>"
+garden gate reject <name> --note "<why>"
 ```
 
 Then confirm the outcome to the user (what was promoted/installed, or that the

@@ -41,12 +41,12 @@ in shells.
 To see the resolved store path at any time:
 
 ```sh
-garden-home
+garden home
 ```
 
 ### Store location (optional)
 
-The store root is resolved by `garden-home` in this order:
+The store root is resolved by `garden home` in this order:
 
 1. `$WIKIGARDEN_HOME` environment variable
 2. `~/.config/wiki-garden/config` with a line `home=/abs/path/to/store`
@@ -62,7 +62,7 @@ accumulated knowledge across machines (and keep a history of how it evolved),
 turn the store into its own git repo:
 
 ```sh
-cd "$(garden-home)"
+cd "$(garden home)"
 git init
 git add -A && git commit -m "wiki-garden store"
 git remote add origin <your-private-remote>
@@ -78,19 +78,19 @@ recommended.
 - `/wiki-garden <task summary>` — capture a structured trace of what just happened
   into `raw/` (the `wiki-garden` skill). Run it whenever a task taught you
   something worth keeping. With no argument it can also run consolidation.
-- `garden-maintain` — compile unprocessed traces into `wiki/` patterns.
+- `garden maintain` — compile unprocessed traces into `wiki/` patterns.
   Standalone `uv` script (PEP 723), model-agnostic: set `WIKIGARDEN_LLM`
   (`anthropic`|`openai`, the latter covers local vLLM/Ollama via
   `WIKIGARDEN_LLM_BASE_URL`). `--dry-run` previews the patch-plan; `--plan-file`
   applies a given plan without calling any LLM. Also available inside Claude Code
   as the `wiki-maintainer` subagent.
-- `garden-propose` — propose one atomic, reusable skill grounded in a wiki
+- `garden propose` — propose one atomic, reusable skill grounded in a wiki
   pattern, staged to `proposals/` for gating (never auto-activated). Same
-  `uv`/model-agnostic shape as `garden-maintain` (`--dry-run`, `--plan-file`).
+  `uv`/model-agnostic shape as `garden maintain` (`--dry-run`, `--plan-file`).
   Also available as the `skill-proposer` subagent.
-- `garden-evolve` (`/garden-evolve`) — one iteration: runs `maintain` then
+- `garden evolve` (`/garden-evolve`) — one iteration: runs `maintain` then
   `propose` in sequence, forwarding flags (`--dry-run`, `--backend`, `--model`).
-- `garden-gate` (`/garden-gate`) — review staged proposals and accept or
+- `garden gate` (`/garden-gate`) — review staged proposals and accept or
   reject: `list` / `show <name>` / `retro <name>` / `accept <name>` /
   `reject <name> --note`. Retro-eval is advisory (skips when `eval/stash/` is
   empty); accept promotes `proposals/`→`skills/`, installs to `~/.claude/skills`,
@@ -101,19 +101,19 @@ recommended.
 Beside skills, Wiki Garden can promote an ephemeral script into a reusable CLI
 **tool**:
 
-- `garden-tool --from <script>` (`/garden-tool`) — generalizes a one-off script
+- `garden tool capture --from <script>` (`/garden-tool`) — generalizes a one-off script
   (lifts hardcoded values into flags, strips secrets, adds `--help`, targets your
   runtime) and stages it under `tool-proposals/` for review. Never installed
   until gated. `--dry-run` previews; `--runtime bash|uv|node` overrides the
   default.
-- `garden-tool-gate` (`/garden-tool-gate`) — review staged tools and accept or
+- `garden tool gate` (`/garden-tool-gate`) — review staged tools and accept or
   reject: `list` / `show <name>` (manifest + full source) / `review <name>`
   (static safety check) / `accept` / `reject --note`. You must read the code;
   accept installs `<prefix><name>` onto `~/.local/bin` and records to
   `tool-impact.jsonl`.
-- `garden-tool-mine` (`/garden-tool-mine`) — scan traces for recurring/reusable
+- `garden tool mine` (`/garden-tool-mine`) — scan traces for recurring/reusable
   commands and stage them as tool proposals automatically (the ambient path).
-- `garden-tools-catalog` — regenerate the `wiki-garden-tools` catalog skill from
+- `garden tool catalog` — regenerate the `wiki-garden-tools` catalog skill from
   installed tools (auto-runs on accept) so the agent discovers and reuses them.
 - Config in `~/.config/wiki-garden/config`: `tool_prefix` (default `gt-`),
   `tool_runtime` (default `bash`), and `tool_guidance` (short house-style note).

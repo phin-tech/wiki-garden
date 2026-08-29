@@ -9,10 +9,18 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import urllib.request
 from pathlib import Path
+
+PROMPTS = Path(__file__).resolve().parent.parent / "prompts"
+
+
+def prompt(name: str) -> str:
+    """Read a shipped prompt (prompts/<name>.md)."""
+    return (PROMPTS / f"{name}.md").read_text()
 
 
 def log(msg: str) -> None:
@@ -26,16 +34,35 @@ def die(msg: str, code: int = 1):
 
 # ---------------------------------------------------------------- store
 
-def resolve_store(here: Path) -> Path:
-    """Resolve the store via garden-home (PATH or sibling), else env/default."""
-    for cand in ("garden-home", str(here / "garden-home")):
-        try:
-            out = subprocess.run([cand], capture_output=True, text=True, check=True)
-            return Path(out.stdout.strip())
-        except (FileNotFoundError, subprocess.CalledProcessError):
-            continue
+def store_root() -> Path:
+    """Resolve the store root: $WIKIGARDEN_HOME -> config `home=` -> default
+    ~/.config/wiki-garden. Ensures the skeleton exists. Pure Python (no subprocess)."""
     env = os.environ.get("WIKIGARDEN_HOME")
-    return Path(env) if env else Path.home() / ".config" / "wiki-garden"
+    if env:
+        root = Path(env).expanduser()
+    else:
+        home = read_config().get("home")
+        root = Path(home).expanduser() if home else config_file().parent
+    ensure_skeleton(root)
+    return root
+
+
+def ensure_skeleton(root: Path) -> None:
+    for d in ("raw", "wiki/patterns", "skills", "proposals", "tools",
+              "tool-proposals", "eval/stash", "eval/results"):
+        (root / d).mkdir(parents=True, exist_ok=True)
+    (root / "wiki" / ".processed.log").touch()
+    si = root / "wiki" / "skill-impact.jsonl"
+    if not si.exists():
+        si.write_text("")
+    el = root / "wiki" / "evolution-log.md"
+    if not el.exists():
+        el.write_text("# Evolution Log\n\n<!-- newest first -->\n")
+
+
+def resolve_store(here: Path | None = None) -> Path:
+    """Back-compat alias for store_root() (the `here` arg is ignored)."""
+    return store_root()
 
 
 def config_file() -> Path:

@@ -12,8 +12,9 @@ into a persistent **wiki** of patterns and (later) evolving **skills**, so the
 agent stops relearning the same lessons. Adapted from *WikiSkill* (arXiv
 2608.27454).
 
-Runtime lives beside this file: `scripts/` (executables) and
-`prompts/`. Refer to them relative to this skill's directory.
+Runtime lives beside this file: a single `garden` CLI in `scripts/` (plus its
+`_*.py` modules) and the model-agnostic `prompts/`. On PATH after `./install.sh`,
+so you can call `garden <subcommand>` from anywhere.
 
 ## Invocation
 
@@ -26,12 +27,12 @@ Runtime lives beside this file: `scripts/` (executables) and
 
 ## Store location
 
-All data lives in a store resolved by `scripts/garden-home` (first hit wins):
+All data lives in a store resolved by `garden home` (first hit wins):
 `$WIKIGARDEN_HOME` → `~/.config/wiki-garden/config` (`home=...`) →
 default `~/.config/wiki-garden` (auto-created). Get it with:
 
 ```bash
-STORE="$(scripts/garden-home)"    # or just `garden-home` if on PATH
+STORE="$(garden home)"    # or just `garden home` if on PATH
 ```
 
 Layout: `raw/` (traces) · `wiki/patterns/` + `wiki/evolution-log.md` +
@@ -86,8 +87,8 @@ The friction section is often the most valuable.
 Run the standalone, model-agnostic maintainer (a PEP 723 `uv` script):
 
 ```bash
-scripts/garden-maintain              # compile new traces into wiki/patterns
-scripts/garden-maintain --dry-run    # preview the patch-plan, change nothing
+garden maintain              # compile new traces into wiki/patterns
+garden maintain --dry-run    # preview the patch-plan, change nothing
 ```
 
 Backend is pluggable via env — nothing is tied to one provider:
@@ -97,7 +98,7 @@ Backend is pluggable via env — nothing is tied to one provider:
 - `WIKIGARDEN_LLM=openai` + `WIKIGARDEN_LLM_BASE_URL` (OpenAI, local vLLM, Ollama).
 - `WIKIGARDEN_LLM_MODEL=<id>` for any backend.
 
-The same applies to `scripts/garden-propose` (stages a skill proposal).
+The same applies to `garden propose` (stages a skill proposal).
 
 The maintainer only ever adds/refines wiki knowledge; it never writes skills and
 never wipes existing patterns. Single-trace themes are recorded as
@@ -109,21 +110,23 @@ To run both steps at once — compile traces into the wiki, then stage at most o
 atomic skill proposal:
 
 ```bash
-scripts/garden-evolve            # maintain, then propose
-scripts/garden-evolve --dry-run  # preview both, write nothing
+garden evolve            # maintain, then propose
+garden evolve --dry-run  # preview both, write nothing
 ```
 
-`garden-propose` reads the wiki + existing skills + the `skill-impact.jsonl`
+`garden propose` reads the wiki + existing skills + the `skill-impact.jsonl`
 ledger and stages a proposal under `<store>/proposals/<ts>_<name>/` (SKILL.md +
 PURPOSE.md + proposal.json). It **never activates** a skill — review the staged
 proposal before promoting it into `skills/`. Proposals are conservative:
 single-trace patterns are usually too weak, so `no_change` is common and fine.
 
-## Optional: put scripts on PATH
+## Put `garden` on PATH
+
+`./install.sh` symlinks the single `garden` CLI into `~/.local/bin`. To do it by
+hand from this skill's directory:
 
 ```bash
-ln -sf "$PWD/scripts/garden-home"     ~/.local/bin/garden-home
-ln -sf "$PWD/scripts/garden-maintain" ~/.local/bin/garden-maintain
+ln -sf "$PWD/scripts/garden" ~/.local/bin/garden
 ```
 
 ## Notes for agents

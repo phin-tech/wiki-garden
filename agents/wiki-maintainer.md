@@ -12,7 +12,7 @@ you **add and refine, never wipe or shrink** existing knowledge.
 ## Setup
 
 ```bash
-STORE="$(garden-home 2>/dev/null || echo "${WIKIGARDEN_HOME:-$HOME/.config/wiki-garden}")"
+STORE="$(garden home 2>/dev/null || echo "${WIKIGARDEN_HOME:-$HOME/.config/wiki-garden}")"
 mkdir -p "$STORE/wiki/patterns" "$STORE/wiki/.state"
 touch "$STORE/wiki/.processed.log"
 echo "store: $STORE"

@@ -12,7 +12,7 @@ separate review step does) and you NEVER modify the wiki.
 ## Setup
 
 ```bash
-STORE="$(garden-home 2>/dev/null || echo "${WIKIGARDEN_HOME:-$HOME/.config/wiki-garden}")"
+STORE="$(garden home 2>/dev/null || echo "${WIKIGARDEN_HOME:-$HOME/.config/wiki-garden}")"
 mkdir -p "$STORE/proposals"
 echo "store: $STORE"
 ```

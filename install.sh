@@ -36,7 +36,7 @@ done
 echo "skill:"
 link "$repo/skills/wiki-garden" "$HOME/.claude/skills/wiki-garden"
 
-store="$("$repo/skills/wiki-garden/scripts/garden-home")"
+store="$("$repo/skills/wiki-garden/scripts/garden" home)"
 echo "store: $store"
 
 case ":$PATH:" in

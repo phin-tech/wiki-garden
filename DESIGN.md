@@ -38,16 +38,13 @@ wiki-garden/
     wiki-garden/               # the shippable skill (skills.sh discovers SKILL.md)
       SKILL.md               # self-sufficient workflow: capture + consolidate
       scripts/
-        garden-home       # resolves the store root portably (env/config/default)
-        garden-maintain   # standalone maintainer (PEP 723 / uv, pluggable LLM)
-        garden-propose    # standalone skill proposer (stages to proposals/)
-        garden-evolve     # sequencer: maintain then propose (forwards flags)
-        garden-gate       # gate: retro-eval + accept/reject + promote + ledger
-        _garden.py              # shared backend + store helpers (imported, not on PATH)
+        garden            # the single Typer CLI (PEP 723 / uv); ONLY file on PATH
+        _garden.py        # shared: store resolution, config, LLM backend, catalog
+        _skills.py        # maintain / propose / gate (skills + wiki pipeline)
+        _tools.py         # tool capture / gate / mine (tools layer)
       prompts/
-        wiki-maintainer.md   # model-agnostic maintainer prompt
-        skill-proposer.md    # model-agnostic proposer prompt
-        retro-eval.md        # model-agnostic retro-eval judge prompt
+        wiki-maintainer.md   skill-proposer.md   retro-eval.md
+        tool-generalizer.md  tool-review.md      tool-miner.md
   agents/                    # Claude Code subagents (wiki-maintainer, skill-proposer)
   commands/                  # /garden-evolve (author convenience; capture lives in the skill)
   install.sh                 # dev install: symlinks scripts→PATH, commands, agents, skill
@@ -62,7 +59,7 @@ that skills.sh does not carry).
 **Data (the store)** — default `~/.config/wiki-garden/`, auto-created, machine-local
 (git-init it yourself if you want the data versioned):
 ```
-<store>/                     # resolved by garden-home (skills/wiki-garden/scripts/)
+<store>/                     # resolved by garden home (skills/wiki-garden/scripts/)
   raw/                       # immutable execution traces (append-only)
     2026-08-29T14-03_<slug>.md
   wiki/                      # persistent knowledge base (patched, never wiped)
@@ -146,7 +143,7 @@ review during gating; the machine-parsed decision ledger is JSONL; the
 
 This system is used *from within other projects* (daily eng across stacks) and
 across machines (home, work), so the store root is **resolved at runtime**, not
-hardcoded. `garden-home` returns the absolute store path using the first
+hardcoded. `garden home` returns the absolute store path using the first
 hit of:
 
 1. `$WIKIGARDEN_HOME` environment variable
@@ -155,7 +152,7 @@ hit of:
 3. default: `~/.config/wiki-garden` — auto-created with the store skeleton on
    first call; identical path on every machine, so zero-config out of the box
 
-Every command, hook, and agent calls `garden-home` instead of embedding
+Every command, hook, and agent calls `garden home` instead of embedding
 a path.
 
 - Source of truth for commands/agents lives in this repo (`commands/`, `agents/`).
@@ -185,13 +182,13 @@ Both write the same trace format above; they differ in when and how.
 
 ## Agent roles
 
-- **Wiki Maintainer** (`agents/wiki-maintainer` + `garden-maintain`):
+- **Wiki Maintainer** (`agents/wiki-maintainer` + `garden maintain`):
   reads recent `raw/` traces + current wiki, emits **patch ops**
   (create/append/replace) to `wiki/`. Runs on every iteration and its output
   persists *regardless* of any skill decision — the wiki is the long-term memory
   even when no skill changes. Runnable via Claude Code subagent OR the
   standalone, model-agnostic runner (see Execution model).
-- **Skill Proposer** (`agents/skill-proposer` + `garden-propose`): reads wiki
+- **Skill Proposer** (`agents/skill-proposer` + `garden propose`): reads wiki
   patterns + existing skills + the ledger, proposes **exactly one atomic** skill
   change (new skill or edit) — or `no_change`. Stages it under
   `proposals/<ts>_<name>/` (SKILL.md + PURPOSE.md + proposal.json); it **never
@@ -210,8 +207,8 @@ runs two ways over the **same model-agnostic prompt**:
 
 - **Interactive (Claude Code)**: the subagent under `agents/` — convenient
   inside a session, uses Claude Code's tools directly.
-- **Standalone (any LLM)**: deterministic runners (`garden-maintain`,
-  `garden-propose`) that do NOT need a tool-using agent. The LLM is asked for
+- **Standalone (any LLM)**: deterministic runners (`garden maintain`,
+  `garden propose`) that do NOT need a tool-using agent. The LLM is asked for
   a **JSON plan**; plain code validates and applies/stages it. Shared backend +
   store helpers live in `scripts/_garden.py`.
 
@@ -248,7 +245,7 @@ Because the default backend is the `claude` CLI, "Claude-independent" means the
 *architecture* isn't bound to it (swap one env var for a local model), not that
 Claude is avoided — the default deliberately uses the login you already have.
 
-Runner is a **PEP 723 / `uv run` script** (`garden-maintain`) — inline
+Runner is a **PEP 723 / `uv run` script** (`garden maintain`) — inline
 script metadata, launched via `#!/usr/bin/env -S uv run --script`, stdlib-only
 (urllib + json, zero declared deps) so `uv` pins the interpreter with nothing to
 install. Flags: `--dry-run` (print plan, mutate nothing) and `--plan-file`
@@ -278,7 +275,7 @@ A second active layer beside skills: where a **skill** is advisory markdown, a
 compiler (`raw → wiki → {skills, tools}`), same propose→stage→gate pipeline;
 different artifact.
 
-- **Capture** (`garden-tool` + `/garden-tool`): take a raw one-off script → an
+- **Capture** (`garden tool capture` + `/garden-tool`): take a raw one-off script → an
   LLM **generalizer** lifts hardcoded values into flags, **strips secrets**
   (env/credential-chain instead), adds `--help`, targets the configured runtime,
   and defaults destructive scripts to a preview posture. Staged under
@@ -296,21 +293,21 @@ different artifact.
   getopts". Style/runtime only; the safety rules (strip secrets, preview
   destructive ops) always override. The overlay mechanism (`prompt_overlays`) is
   generic and can later augment the maintainer/proposer/retro prompts too.
-- **Gate** (`garden-tool-gate` + `/garden-tool-gate`): mandatory **human code
+- **Gate** (`garden tool gate` + `/garden-tool-gate`): mandatory **human code
   review** (`show` prints the full source) plus a **static** safety review — an
   LLM judge that reads the code (secrets / unguarded destructive ops / injection
   / correctness) and never executes it; advisory, the human decides. Accept →
   move to `tools/`, symlink `<prefix><name>` onto `~/.local/bin` (PATH), record in
   `wiki/tool-impact.jsonl`; reject archives + records. The review is resilient: a
   backend failure yields `skipped`, never blocking a human-authorized accept.
-- **Discovery** (`garden-tools-catalog`, auto-run on accept): regenerates a
+- **Discovery** (`garden tool catalog`, auto-run on accept): regenerates a
   Runme-compatible `tools/CATALOG.md` and a discoverable `wiki-garden-tools`
   skill (`~/.claude/skills/`) whose description lists the installed tools, so the
   agent reaches for a tool instead of rewriting it. Executable = canonical
   artifact; catalog = index + docs.
-- **Auto-mine** (`garden-tool-mine` + `/garden-tool-mine`): scans unmined `raw/`
+- **Auto-mine** (`garden tool mine` + `/garden-tool-mine`): scans unmined `raw/`
   traces for recurring/reusable command-line ops and stages each by piping it
-  through `garden-tool` (same generalize + secret-strip + gate). Incremental via
+  through `garden tool capture` (same generalize + secret-strip + gate). Incremental via
   a `tools/.mined.log` cursor; existing + rejected names skipped. The ambient
   path; manual `/garden-tool` capture is the deliberate one.
 
@@ -351,24 +348,24 @@ cross-project learning), but each accepted output is installed at a chosen scope
 
 ## Build phases
 
-- **Phase 0** — ✅ store contract, portable resolver (`garden-home`),
+- **Phase 0** — ✅ store contract, portable resolver (`garden home`),
   installer, README.
 - **Phase 1** — trace capture. ✅ `/wiki-garden` skill capture flow (manual,
   per-task). ◻ session-end hook (automatic, per-session) → `raw/`.
 - **Phase 2** — Wiki Maintainer. ✅ Claude Code subagent (prompt validated on a
-  real trace → 3 patterns). ✅ standalone `garden-maintain` (PEP 723/uv,
+  real trace → 3 patterns). ✅ standalone `garden maintain` (PEP 723/uv,
   JSON patch-plan, pluggable anthropic|openai backend); applier validated across
   all op types via `--plan-file`. ◻ live LLM smoke-test (needs an API key/local
   model).
 - **Phase 3** — Skill Proposer. ✅ Claude Code subagent + standalone
-  `garden-propose` (PEP 723/uv, shared `_garden.py`); stages atomic, traceable
+  `garden propose` (PEP 723/uv, shared `_garden.py`); stages atomic, traceable
   proposals to `proposals/` without activating; stager validated via `--plan-file`.
   ✅ live LLM smoke-test via `claude` backend (no key).
-- **Phase 4** — gating. ✅ `garden-gate` (retro-eval LLM judge over
+- **Phase 4** — gating. ✅ `garden gate` (retro-eval LLM judge over
   `eval/stash/`, advisory + skip-when-empty; human accept/reject; `skill-impact.jsonl`
   writes on both; promote `proposals/`→`skills/`; install to `~/.claude/skills`) +
   `/garden-gate` command. Accept/reject/retro all validated (retro live).
-- **Phase 5** — orchestration. ✅ `garden-evolve` sequencer (maintain→propose)
+- **Phase 5** — orchestration. ✅ `garden evolve` sequencer (maintain→propose)
   + `/garden-evolve` command. ◻ insert the gate between propose and activate;
   ◻ weekly schedule.
 

@@ -7,12 +7,12 @@ allowed-tools: Bash
 Run the tool miner, forwarding any argument (e.g. `--dry-run`):
 
 ```bash
-garden-tool-mine $ARGUMENTS
+garden tool mine $ARGUMENTS
 ```
 
 It scans unmined `raw/` traces for command-line operations that recur or are
 clearly reusable, and stages each as a tool proposal by piping it through
-`garden-tool` (same generalization + secret-stripping + config runtime/overlays).
+`garden tool capture` (same generalization + secret-stripping + config runtime/overlays).
 A cursor makes it incremental; existing and previously-rejected tools are skipped.
 
 After it runs, summarize: which candidates it found and staged (or why nothing),

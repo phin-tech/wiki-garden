@@ -8,7 +8,7 @@ Run one Wiki Garden evolution iteration by invoking the sequencer, forwarding an
 argument (e.g. `--dry-run`):
 
 ```bash
-garden-evolve $ARGUMENTS
+garden evolve $ARGUMENTS
 ```
 
 This does two things, in order:
