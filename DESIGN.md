@@ -287,7 +287,15 @@ different artifact.
   ```
   tool_prefix  = gt-     # namespaces every tool (tab-completable); user-set
   tool_runtime = bash    # default runtime: bash | uv | node; per-tool override
+  tool_guidance = ...    # short inline house-style note appended to the generalizer
   ```
+- **House-style prompt overlays** (`~/.config/wiki-garden/prompts/`): the
+  generalizer appends `tool.md` (always) and `tool.<runtime>.md` (for the chosen
+  runtime) so the user injects their own conventions — e.g. "uv scripts with
+  PEP 723 and pinned deps, click for args" vs "bash with set -euo pipefail and
+  getopts". Style/runtime only; the safety rules (strip secrets, preview
+  destructive ops) always override. The overlay mechanism (`prompt_overlays`) is
+  generic and can later augment the maintainer/proposer/retro prompts too.
 - **Gate** (T2, planned): mandatory **human code review** (it's executable);
   retro-eval is **static** ("safe / correct / general?"), never executed. Accept
   → move to `tools/`, symlink `<prefix><name>` onto PATH, record in the ledger.

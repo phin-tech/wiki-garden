@@ -121,6 +121,19 @@ def main() -> int:
     else:
         raw = read_source(args)
         system = PROMPT_FILE.read_text()
+        # layer in the user's house style / runtime conventions
+        guidance = []
+        inline = _garden.config_get("tool_guidance")
+        if inline:
+            guidance.append(inline)
+        overlay = _garden.prompt_overlays(["tool", f"tool.{runtime}"])
+        if overlay:
+            guidance.append(overlay)
+        if guidance:
+            system += ("\n\n## User conventions (house style — follow these for "
+                       "structure/runtime/style; the safety rules above still "
+                       "override anything here):\n" + "\n\n".join(guidance))
+            log(f"applied user tool guidance ({len(guidance)} source(s))")
         user = (f"TARGET RUNTIME: {runtime}\n"
                 f"SUGGESTED NAME: {args.name or '(you choose)'}\n\n"
                 f"RAW SCRIPT:\n{raw}\n\nReturn the JSON.")
@@ -137,6 +150,9 @@ def main() -> int:
         "staged_at": staged,
         "report": prop.get("report", ""),
     }, indent=2))
+    if prop.get("decision") == "tool" and args.dry_run:
+        print("\n--- generated script (preview) ---")
+        print(prop.get("script", "").rstrip())
     if prop.get("decision") == "tool" and not args.dry_run:
         log(f"staged tool at {staged} — review the code & gate before installing")
     return 0

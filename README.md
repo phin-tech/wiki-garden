@@ -107,8 +107,12 @@ Beside skills, Wiki Garden can promote an ephemeral script into a reusable CLI
   runtime) and stages it under `tool-proposals/` for review. Never installed
   until gated. `--dry-run` previews; `--runtime bash|uv|node` overrides the
   default.
-- Config in `~/.config/wiki-garden/config`: `tool_prefix` (default `gt-`) and
-  `tool_runtime` (default `bash`).
+- Config in `~/.config/wiki-garden/config`: `tool_prefix` (default `gt-`),
+  `tool_runtime` (default `bash`), and `tool_guidance` (short house-style note).
+- House-style overlays in `~/.config/wiki-garden/prompts/`: `tool.md` (always)
+  and `tool.<runtime>.md` (per runtime) are appended to the generalizer, so you
+  can dictate conventions — e.g. "uv scripts with PEP 723 + pinned deps, click
+  for args" or "bash with `set -euo pipefail` + getopts". Safety rules still win.
 
 ## Status
 

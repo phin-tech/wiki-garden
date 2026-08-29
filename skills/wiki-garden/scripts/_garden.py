@@ -57,10 +57,29 @@ def read_config() -> dict:
     return cfg
 
 
+def config_get(key: str, default: str = "") -> str:
+    return read_config().get(key, default)
+
+
 def tool_settings() -> tuple[str, str]:
     """(tool_prefix, tool_runtime) from config, with defaults."""
     c = read_config()
     return c.get("tool_prefix", "gt-"), c.get("tool_runtime", "bash")
+
+
+def prompt_overlays(names: list[str]) -> str:
+    """Concatenate user prompt-overlay files from <config>/prompts/<name>.md for
+    each name (missing files skipped). Lets a user inject house style/runtime
+    conventions into an agent's prompt without editing the shipped prompts."""
+    base = config_file().parent / "prompts"
+    parts = []
+    for n in names:
+        f = base / f"{n}.md"
+        if f.exists():
+            txt = f.read_text().strip()
+            if txt:
+                parts.append(txt)
+    return "\n\n".join(parts)
 
 
 # ---------------------------------------------------------------- llm
