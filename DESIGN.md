@@ -296,18 +296,24 @@ different artifact.
   getopts". Style/runtime only; the safety rules (strip secrets, preview
   destructive ops) always override. The overlay mechanism (`prompt_overlays`) is
   generic and can later augment the maintainer/proposer/retro prompts too.
-- **Gate** (T2, planned): mandatory **human code review** (it's executable);
-  retro-eval is **static** ("safe / correct / general?"), never executed. Accept
-  → move to `tools/`, symlink `<prefix><name>` onto PATH, record in the ledger.
+- **Gate** (`garden-tool-gate` + `/garden-tool-gate`): mandatory **human code
+  review** (`show` prints the full source) plus a **static** safety review — an
+  LLM judge that reads the code (secrets / unguarded destructive ops / injection
+  / correctness) and never executes it; advisory, the human decides. Accept →
+  move to `tools/`, symlink `<prefix><name>` onto `~/.local/bin` (PATH), record in
+  `wiki/tool-impact.jsonl`; reject archives + records. The review is resilient: a
+  backend failure yields `skipped`, never blocking a human-authorized accept.
 - **Discovery** (T3, planned): a generated **Runme-compatible catalog**, surfaced
   as a `wiki-garden-tools` skill, so the agent reaches for a tool instead of
   rewriting it. Executable = canonical artifact; catalog = index + docs.
 - **Auto-mine** (T4, planned): mine traces for recurring scripts and propose
   promoting them (the ambient path; manual capture is T1).
 
-Tool build phases: **T1 ✅** capture + generalize + stage (`garden-tool`,
-`tool-generalizer.md`, config keys, store dirs; stager + live generalization with
-secret-stripping validated). **T2** gate. **T3** catalog skill. **T4** auto-mine.
+Tool build phases: **T1 ✅** capture + generalize + stage. **T2 ✅** gate
+(`garden-tool-gate`: human code review + static safety review + promote/install +
+`tool-impact.jsonl`; accept/reject/install validated deterministically, live
+review flagged a planted secret + unguarded `aws s3 rm`). **T3** catalog skill
+(Runme). **T4** auto-mine.
 
 ## Evolution iteration (one run of `/garden-evolve`)
 

@@ -186,7 +186,10 @@ def main() -> int:
         user = (f"CURRENT WIKI PATTERNS:\n{read_patterns_context(store)}\n\n"
                 f"NEW UNPROCESSED TRACES:\n{trace_blob}\n\n"
                 f"Today is {date.today().isoformat()}. Return the JSON patch-plan.")
-        raw = call_llm(system, user, args.backend, args.model)
+        try:
+            raw = call_llm(system, user, args.backend, args.model)
+        except RuntimeError as e:
+            die(str(e))
         plan = parse_json(raw)
         # ensure every trace is marked processed even if the model forgot
         plan.setdefault("processed", [])

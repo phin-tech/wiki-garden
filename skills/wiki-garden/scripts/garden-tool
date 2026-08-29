@@ -137,7 +137,10 @@ def main() -> int:
         user = (f"TARGET RUNTIME: {runtime}\n"
                 f"SUGGESTED NAME: {args.name or '(you choose)'}\n\n"
                 f"RAW SCRIPT:\n{raw}\n\nReturn the JSON.")
-        prop = parse_json(call_llm(system, user, args.backend, args.model))
+        try:
+            prop = parse_json(call_llm(system, user, args.backend, args.model))
+        except RuntimeError as e:
+            die(str(e))
         prop.setdefault("runtime", runtime)
 
     staged = stage(store, prop, prefix, source_note, args.dry_run)

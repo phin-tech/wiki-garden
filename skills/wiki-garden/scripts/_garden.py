@@ -104,9 +104,9 @@ def _claude_cli(system: str, user: str, model: str | None) -> str:
     try:
         out = subprocess.run(cmd, input=user, capture_output=True, text=True, check=True)
     except FileNotFoundError:
-        die("`claude` CLI not found on PATH (needed for WIKIGARDEN_LLM=claude)")
+        raise RuntimeError("`claude` CLI not found on PATH (needed for WIKIGARDEN_LLM=claude)")
     except subprocess.CalledProcessError as e:
-        die(f"claude -p failed: {e.stderr.strip() or e}")
+        raise RuntimeError(f"claude -p failed: {e.stderr.strip() or e}")
     return out.stdout
 
 
@@ -119,7 +119,9 @@ def _http_json(url: str, headers: dict, payload: dict) -> dict:
 
 
 def _anthropic(system: str, user: str, model: str | None) -> str:
-    key = os.environ.get("ANTHROPIC_API_KEY") or die("ANTHROPIC_API_KEY not set")
+    key = os.environ.get("ANTHROPIC_API_KEY")
+    if not key:
+        raise RuntimeError("ANTHROPIC_API_KEY not set")
     model = model or "claude-opus-4-8"
     data = _http_json(
         "https://api.anthropic.com/v1/messages",

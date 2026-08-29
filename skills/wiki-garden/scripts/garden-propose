@@ -97,7 +97,10 @@ def main() -> int:
     else:
         system = PROMPT_FILE.read_text()
         user = gather_context(store) + f"\n\nToday is {date.today().isoformat()}. Return the JSON proposal."
-        prop = parse_json(call_llm(system, user, args.backend, args.model))
+        try:
+            prop = parse_json(call_llm(system, user, args.backend, args.model))
+        except RuntimeError as e:
+            die(str(e))
 
     staged = stage(store, prop, args.dry_run)
 

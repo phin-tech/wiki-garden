@@ -107,6 +107,11 @@ Beside skills, Wiki Garden can promote an ephemeral script into a reusable CLI
   runtime) and stages it under `tool-proposals/` for review. Never installed
   until gated. `--dry-run` previews; `--runtime bash|uv|node` overrides the
   default.
+- `garden-tool-gate` (`/garden-tool-gate`) — review staged tools and accept or
+  reject: `list` / `show <name>` (manifest + full source) / `review <name>`
+  (static safety check) / `accept` / `reject --note`. You must read the code;
+  accept installs `<prefix><name>` onto `~/.local/bin` and records to
+  `tool-impact.jsonl`.
 - Config in `~/.config/wiki-garden/config`: `tool_prefix` (default `gt-`),
   `tool_runtime` (default `bash`), and `tool_guidance` (short house-style note).
 - House-style overlays in `~/.config/wiki-garden/prompts/`: `tool.md` (always)
