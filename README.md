@@ -91,7 +91,11 @@ recommended.
   Also available as the `skill-proposer` subagent.
 - `wikiskill-evolve` (`/wikiskill-evolve`) — one iteration: runs `maintain` then
   `propose` in sequence, forwarding flags (`--dry-run`, `--backend`, `--model`).
-  Gating (retro-eval + human diff) slots in after propose — see DESIGN phases.
+- `wikiskill-gate` (`/wikiskill-gate`) — review staged proposals and accept or
+  reject: `list` / `show <name>` / `retro <name>` / `accept <name>` /
+  `reject <name> --note`. Retro-eval is advisory (skips when `eval/stash/` is
+  empty); accept promotes `proposals/`→`skills/`, installs to `~/.claude/skills`,
+  and records the decision in `skill-impact.jsonl`.
 
 ## Status
 

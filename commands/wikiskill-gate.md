@@ -1,0 +1,52 @@
+---
+description: Review staged WikiSkill skill proposals and accept or reject each — the human-diff gate. Runs retro-eval, records the decision, and promotes accepted skills into skills/.
+argument-hint: [proposal name, optional]
+allowed-tools: Bash
+---
+
+You are running the **human-diff gate** for WikiSkill. Present each staged
+proposal to the user and record their decision — never decide for them.
+
+## 1. List what's staged
+
+```bash
+wikiskill-gate list
+```
+
+If a name was given in `$ARGUMENTS`, gate just that one; otherwise walk through
+each staged proposal in turn.
+
+## 2. Show the proposal
+
+```bash
+wikiskill-gate show <name>
+```
+
+Present it clearly: the skill's purpose, the wiki pattern it traces back to
+(PURPOSE.md), and the full SKILL.md. Optionally run retro-eval to inform the user
+(advisory — it only fails on `harmful`, and skips when `eval/stash/` is empty):
+
+```bash
+wikiskill-gate retro <name>
+```
+
+## 3. Ask the user to decide
+
+Ask plainly: accept or reject? For a reject, get a one-line reason. Do NOT
+pressure toward either; the user is the authority. If they want edits first, they
+can tweak the staged `SKILL.md` before accepting.
+
+## 4. Record the decision
+
+```bash
+# accept: promotes proposals/<x> -> skills/<name>, installs to ~/.claude/skills,
+# runs retro-eval, and appends an accepted record to skill-impact.jsonl
+wikiskill-gate accept <name> --note "<optional>"
+
+# reject: appends a rejected record (so it is never re-proposed) and archives it
+wikiskill-gate reject <name> --note "<why>"
+```
+
+Then confirm the outcome to the user (what was promoted/installed, or that the
+rejection was recorded). Accepted skills become active immediately for new
+sessions; a reject is remembered by the proposer.

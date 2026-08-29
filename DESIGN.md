@@ -42,10 +42,12 @@ wiki-skills/
         wikiskill-maintain   # standalone maintainer (PEP 723 / uv, pluggable LLM)
         wikiskill-propose    # standalone skill proposer (stages to proposals/)
         wikiskill-evolve     # sequencer: maintain then propose (forwards flags)
+        wikiskill-gate       # gate: retro-eval + accept/reject + promote + ledger
         _wsk.py              # shared backend + store helpers (imported, not on PATH)
       prompts/
         wiki-maintainer.md   # model-agnostic maintainer prompt
         skill-proposer.md    # model-agnostic proposer prompt
+        retro-eval.md        # model-agnostic retro-eval judge prompt
   agents/                    # Claude Code subagents (wiki-maintainer, skill-proposer)
   commands/                  # /wikiskill-evolve (author convenience; capture lives in the skill)
   install.sh                 # dev install: symlinks scripts→PATH, commands, agents, skill
@@ -290,8 +292,10 @@ the `skills` CLI (`npx skills add <owner/repo>`, github.com/vercel-labs/skills):
   `wikiskill-propose` (PEP 723/uv, shared `_wsk.py`); stages atomic, traceable
   proposals to `proposals/` without activating; stager validated via `--plan-file`.
   ✅ live LLM smoke-test via `claude` backend (no key).
-- **Phase 4** — gating: retro-eval harness + human-diff flow + skill-impact
-  ledger writes + promote `proposals/`→`skills/`.
+- **Phase 4** — gating. ✅ `wikiskill-gate` (retro-eval LLM judge over
+  `eval/stash/`, advisory + skip-when-empty; human accept/reject; `skill-impact.jsonl`
+  writes on both; promote `proposals/`→`skills/`; install to `~/.claude/skills`) +
+  `/wikiskill-gate` command. Accept/reject/retro all validated (retro live).
 - **Phase 5** — orchestration. ✅ `wikiskill-evolve` sequencer (maintain→propose)
   + `/wikiskill-evolve` command. ◻ insert the gate between propose and activate;
   ◻ weekly schedule.
