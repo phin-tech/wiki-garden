@@ -3,24 +3,24 @@
 # requires-python = ">=3.11"
 # dependencies = []
 # ///
-"""WikiSkill Wiki Maintainer — standalone, model-agnostic runner.
+"""Wiki Garden Wiki Maintainer — standalone, model-agnostic runner.
 
 Consolidates unprocessed raw/ traces into the persistent wiki/ layer without
 depending on Claude Code. The LLM only returns a JSON patch-plan; this script
 validates and applies it deterministically.
 
 Backend is pluggable via env:
-  WIKISKILL_LLM        claude | anthropic | openai    (default: claude)
-  WIKISKILL_LLM_MODEL  model id                       (backend-specific default)
-  WIKISKILL_LLM_BASE_URL   OpenAI-compatible base url (e.g. local vLLM / Ollama)
+  WIKIGARDEN_LLM        claude | anthropic | openai    (default: claude)
+  WIKIGARDEN_LLM_MODEL  model id                       (backend-specific default)
+  WIKIGARDEN_LLM_BASE_URL   OpenAI-compatible base url (e.g. local vLLM / Ollama)
   - claude:    uses the local `claude` CLI (-p) and your Claude Code login; no key
   - anthropic: Messages API, needs ANTHROPIC_API_KEY
   - openai:    OpenAI-compatible endpoint, OPENAI_API_KEY (or none for local)
 
 Usage:
-  wikiskill-maintain                 # call LLM, apply plan
-  wikiskill-maintain --dry-run       # call LLM, print plan, apply nothing
-  wikiskill-maintain --plan-file p.json   # skip LLM, apply a given plan (tests applier)
+  garden-maintain                 # call LLM, apply plan
+  garden-maintain --dry-run       # call LLM, print plan, apply nothing
+  garden-maintain --plan-file p.json   # skip LLM, apply a given plan (tests applier)
 """
 from __future__ import annotations
 
@@ -33,15 +33,15 @@ from datetime import date
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE))  # import _wsk even when invoked via a PATH symlink
-import _wsk
-from _wsk import call_llm, die, log, parse_json
+sys.path.insert(0, str(HERE))  # import _garden even when invoked via a PATH symlink
+import _garden
+from _garden import call_llm, die, log, parse_json
 
 PROMPT_FILE = HERE.parent / "prompts" / "wiki-maintainer.md"
 
 
 def resolve_store() -> Path:
-    return _wsk.resolve_store(HERE)
+    return _garden.resolve_store(HERE)
 
 
 def unprocessed_traces(store: Path) -> list[str]:
@@ -160,11 +160,11 @@ def record_iteration(store: Path, plan: dict, changes: list[str], dry_run: bool)
 # ---------------------------------------------------------------- main
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="WikiSkill standalone wiki maintainer")
+    ap = argparse.ArgumentParser(description="Wiki Garden standalone wiki maintainer")
     ap.add_argument("--dry-run", action="store_true", help="print plan, apply nothing")
     ap.add_argument("--plan-file", help="apply a pre-made JSON plan; skip the LLM")
-    ap.add_argument("--backend", default=os.environ.get("WIKISKILL_LLM", "claude"))
-    ap.add_argument("--model", default=os.environ.get("WIKISKILL_LLM_MODEL"))
+    ap.add_argument("--backend", default=os.environ.get("WIKIGARDEN_LLM", "claude"))
+    ap.add_argument("--model", default=os.environ.get("WIKIGARDEN_LLM_MODEL"))
     args = ap.parse_args()
 
     store = resolve_store()

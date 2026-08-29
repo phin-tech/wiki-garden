@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
-# Resolve the WikiSkill store root, portably across machines.
+# Resolve the Wiki Garden store root, portably across machines.
 #
 # Resolution order (first hit wins):
-#   1. $WIKISKILL_HOME environment variable
-#   2. ~/.config/wikiskill/config  ->  a line `home=/abs/path/to/store`
-#   3. default: ~/.config/wikiskill  (auto-created; same path on every machine)
+#   1. $WIKIGARDEN_HOME environment variable
+#   2. ~/.config/wiki-garden/config  ->  a line `home=/abs/path/to/store`
+#   3. default: ~/.config/wiki-garden  (auto-created; same path on every machine)
 #
 # Prints the resolved absolute path to stdout, or exits non-zero with a
-# setup hint on stderr. All WikiSkill commands/hooks/agents call this rather
+# setup hint on stderr. All Wiki Garden commands/hooks/agents call this rather
 # than hardcoding a path.
 set -euo pipefail
 
-config_root() { echo "${XDG_CONFIG_HOME:-$HOME/.config}/wikiskill"; }
+config_root() { echo "${XDG_CONFIG_HOME:-$HOME/.config}/wiki-garden"; }
 
 emit() {
   local dir="$1"
-  # normalize to absolute, verify it looks like a WikiSkill store
+  # normalize to absolute, verify it looks like a Wiki Garden store
   dir="${dir/#\~/$HOME}"
   if [[ -d "$dir" ]]; then
     ( cd "$dir" && pwd )
@@ -25,9 +25,9 @@ emit() {
 }
 
 # 1. env var
-if [[ -n "${WIKISKILL_HOME:-}" ]]; then
-  emit "$WIKISKILL_HOME" && exit 0
-  echo "wikiskill-home: \$WIKISKILL_HOME='$WIKISKILL_HOME' is not a directory" >&2
+if [[ -n "${WIKIGARDEN_HOME:-}" ]]; then
+  emit "$WIKIGARDEN_HOME" && exit 0
+  echo "garden-home: \$WIKIGARDEN_HOME='$WIKIGARDEN_HOME' is not a directory" >&2
   exit 1
 fi
 
@@ -39,12 +39,12 @@ if [[ -f "$cfg" ]]; then
     val="${line#*=}"
     val="$(echo "$val" | sed -E 's/^[[:space:]]+|[[:space:]]+$//g')"
     emit "$val" && exit 0
-    echo "wikiskill-home: home in $cfg ('$val') is not a directory" >&2
+    echo "garden-home: home in $cfg ('$val') is not a directory" >&2
     exit 1
   fi
 fi
 
-# 3. default: ~/.config/wikiskill, auto-created with the store skeleton
+# 3. default: ~/.config/wiki-garden, auto-created with the store skeleton
 default="$(config_root)"
 if [[ ! -d "$default" ]]; then
   mkdir -p "$default"/{raw,wiki/patterns,skills,proposals,eval/stash,eval/results}
@@ -55,7 +55,7 @@ if [[ ! -d "$default" ]]; then
   cat > "$default/wiki/evolution-log.md" <<'LOG'
 # Evolution Log
 
-Chronological record of every `/wikiskill-evolve` iteration: traces consumed,
+Chronological record of every `/garden-evolve` iteration: traces consumed,
 wiki patches applied, and the skill decision.
 
 <!-- newest first -->

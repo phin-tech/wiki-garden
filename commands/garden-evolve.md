@@ -1,14 +1,14 @@
 ---
-description: Run one WikiSkill evolution iteration — consolidate traces into the wiki, then propose one atomic skill (staged for gating, not activated).
+description: Run one Wiki Garden evolution iteration — consolidate traces into the wiki, then propose one atomic skill (staged for gating, not activated).
 argument-hint: [--dry-run]
 allowed-tools: Bash
 ---
 
-Run one WikiSkill evolution iteration by invoking the sequencer, forwarding any
+Run one Wiki Garden evolution iteration by invoking the sequencer, forwarding any
 argument (e.g. `--dry-run`):
 
 ```bash
-wikiskill-evolve $ARGUMENTS
+garden-evolve $ARGUMENTS
 ```
 
 This does two things, in order:

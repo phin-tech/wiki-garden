@@ -1,5 +1,5 @@
-"""Shared helpers for WikiSkill standalone runners (store resolution + pluggable
-LLM backend + JSON parsing). Imported by wikiskill-maintain and wikiskill-propose.
+"""Shared helpers for Wiki Garden standalone runners (store resolution + pluggable
+LLM backend + JSON parsing). Imported by garden-maintain and garden-propose.
 
 Not executable and not on PATH; runners add their *resolved* dir to sys.path so
 this is importable even when the runner is invoked via a PATH symlink.
@@ -16,7 +16,7 @@ from pathlib import Path
 
 
 def log(msg: str) -> None:
-    print(f"[wikiskill] {msg}", file=sys.stderr)
+    print(f"[wiki-garden] {msg}", file=sys.stderr)
 
 
 def die(msg: str, code: int = 1):
@@ -27,15 +27,15 @@ def die(msg: str, code: int = 1):
 # ---------------------------------------------------------------- store
 
 def resolve_store(here: Path) -> Path:
-    """Resolve the store via wikiskill-home (PATH or sibling), else env/default."""
-    for cand in ("wikiskill-home", str(here / "wikiskill-home")):
+    """Resolve the store via garden-home (PATH or sibling), else env/default."""
+    for cand in ("garden-home", str(here / "garden-home")):
         try:
             out = subprocess.run([cand], capture_output=True, text=True, check=True)
             return Path(out.stdout.strip())
         except (FileNotFoundError, subprocess.CalledProcessError):
             continue
-    env = os.environ.get("WIKISKILL_HOME")
-    return Path(env) if env else Path.home() / ".config" / "wikiskill"
+    env = os.environ.get("WIKIGARDEN_HOME")
+    return Path(env) if env else Path.home() / ".config" / "wiki-garden"
 
 
 # ---------------------------------------------------------------- llm
@@ -60,7 +60,7 @@ def _claude_cli(system: str, user: str, model: str | None) -> str:
     try:
         out = subprocess.run(cmd, input=user, capture_output=True, text=True, check=True)
     except FileNotFoundError:
-        die("`claude` CLI not found on PATH (needed for WIKISKILL_LLM=claude)")
+        die("`claude` CLI not found on PATH (needed for WIKIGARDEN_LLM=claude)")
     except subprocess.CalledProcessError as e:
         die(f"claude -p failed: {e.stderr.strip() or e}")
     return out.stdout
@@ -88,9 +88,9 @@ def _anthropic(system: str, user: str, model: str | None) -> str:
 
 
 def _openai(system: str, user: str, model: str | None) -> str:
-    base = os.environ.get("WIKISKILL_LLM_BASE_URL", "https://api.openai.com/v1").rstrip("/")
+    base = os.environ.get("WIKIGARDEN_LLM_BASE_URL", "https://api.openai.com/v1").rstrip("/")
     key = os.environ.get("OPENAI_API_KEY", "")
-    model = model or os.environ.get("WIKISKILL_LLM_MODEL") or "gpt-4o"
+    model = model or os.environ.get("WIKIGARDEN_LLM_MODEL") or "gpt-4o"
     headers = {"content-type": "application/json"}
     if key:
         headers["authorization"] = f"Bearer {key}"

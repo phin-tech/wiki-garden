@@ -3,20 +3,20 @@
 # requires-python = ">=3.11"
 # dependencies = []
 # ///
-"""WikiSkill Gate — review, retro-eval, and accept/reject staged skill proposals.
+"""Wiki Garden Gate — review, retro-eval, and accept/reject staged skill proposals.
 
 Gating has two parts (per the design): retro-eval (an LLM judge over eval/stash/
 past tasks — advisory, skipped when the stash is empty) and a human decision.
 This CLI provides the deterministic mechanics; the human decision is supplied by
-the caller (you, via /wikiskill-gate). Every decision is recorded to
+the caller (you, via /garden-gate). Every decision is recorded to
 wiki/skill-impact.jsonl so rejected ideas are never re-proposed.
 
 Commands:
-  wikiskill-gate list                       # staged proposals
-  wikiskill-gate show   <name>              # print a proposal (SKILL.md + PURPOSE.md)
-  wikiskill-gate retro  <name>              # run retro-eval, print + save verdict
-  wikiskill-gate accept <name> [--note ..] [--no-install]
-  wikiskill-gate reject <name>  --note ..
+  garden-gate list                       # staged proposals
+  garden-gate show   <name>              # print a proposal (SKILL.md + PURPOSE.md)
+  garden-gate retro  <name>              # run retro-eval, print + save verdict
+  garden-gate accept <name> [--note ..] [--no-install]
+  garden-gate reject <name>  --note ..
 """
 from __future__ import annotations
 
@@ -30,14 +30,14 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-import _wsk
-from _wsk import call_llm, die, log, parse_json
+import _garden
+from _garden import call_llm, die, log, parse_json
 
 RETRO_PROMPT = HERE.parent / "prompts" / "retro-eval.md"
 
 
 def store() -> Path:
-    return _wsk.resolve_store(HERE)
+    return _garden.resolve_store(HERE)
 
 
 def proposal_dir(st: Path, name: str) -> Path:
@@ -50,7 +50,7 @@ def proposal_dir(st: Path, name: str) -> Path:
     if len(hits) == 1:
         return hits[0]
     if not hits:
-        die(f"no staged proposal matching '{name}' (try: wikiskill-gate list)")
+        die(f"no staged proposal matching '{name}' (try: garden-gate list)")
     die(f"'{name}' is ambiguous: {', '.join(d.name for d in hits)}")
 
 
@@ -200,9 +200,9 @@ def cmd_reject(st: Path, args):
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="WikiSkill gate")
-    ap.add_argument("--backend", default=os.environ.get("WIKISKILL_LLM", "claude"))
-    ap.add_argument("--model", default=os.environ.get("WIKISKILL_LLM_MODEL"))
+    ap = argparse.ArgumentParser(description="Wiki Garden gate")
+    ap.add_argument("--backend", default=os.environ.get("WIKIGARDEN_LLM", "claude"))
+    ap.add_argument("--model", default=os.environ.get("WIKIGARDEN_LLM_MODEL"))
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("list")
     for c in ("show", "retro"):

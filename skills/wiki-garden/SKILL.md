@@ -1,11 +1,11 @@
 ---
-name: wikiskill
-description: Compile your coding-session experience into persistent knowledge. Use to capture a structured trace of a task that just happened (what worked, what failed) into the WikiSkill store, and to consolidate accumulated traces into a wiki of reusable patterns. Triggers on "capture a trace", "wikiskill", "compile my session", "update the wiki", "remember how this went".
+name: wiki-garden
+description: Compile your coding-session experience into persistent knowledge. Use to capture a structured trace of a task that just happened (what worked, what failed) into the Wiki Garden store, and to consolidate accumulated traces into a wiki of reusable patterns. Triggers on "capture a trace", "wiki-garden", "compile my session", "update the wiki", "remember how this went".
 metadata:
-  homepage: https://github.com/phin-tech/wiki-skills
+  homepage: https://github.com/phin-tech/wiki-garden
 ---
 
-# WikiSkill
+# Wiki Garden
 
 A personal memory system for coding agents. It turns your session experience
 into a persistent **wiki** of patterns and (later) evolving **skills**, so the
@@ -17,21 +17,21 @@ Runtime lives beside this file: `scripts/` (executables) and
 
 ## Invocation
 
-- `/wikiskill <task summary>` — capture a trace of the task that just happened;
+- `/wiki-garden <task summary>` — capture a trace of the task that just happened;
   the summary (if given) seeds the **task** field. This is the common case.
-- `/wikiskill` with no argument, or intent like "update the wiki" / "consolidate
+- `/wiki-garden` with no argument, or intent like "update the wiki" / "consolidate
   my traces" — run the maintainer instead (see *Consolidate* below).
 - The model may also auto-trigger capture when a task clearly just taught
   something worth keeping.
 
 ## Store location
 
-All data lives in a store resolved by `scripts/wikiskill-home` (first hit wins):
-`$WIKISKILL_HOME` → `~/.config/wikiskill/config` (`home=...`) →
-default `~/.config/wikiskill` (auto-created). Get it with:
+All data lives in a store resolved by `scripts/garden-home` (first hit wins):
+`$WIKIGARDEN_HOME` → `~/.config/wiki-garden/config` (`home=...`) →
+default `~/.config/wiki-garden` (auto-created). Get it with:
 
 ```bash
-STORE="$(scripts/wikiskill-home)"    # or just `wikiskill-home` if on PATH
+STORE="$(scripts/garden-home)"    # or just `garden-home` if on PATH
 ```
 
 Layout: `raw/` (traces) · `wiki/patterns/` + `wiki/evolution-log.md` +
@@ -48,7 +48,7 @@ When a task just taught you something worth keeping, write a high-signal trace.
    git --no-pager diff --stat HEAD 2>/dev/null | tail -20
    git --no-pager log --oneline -5 2>/dev/null
    ```
-   From that plus the conversation, draft **task** (seeded by the `/wikiskill`
+   From that plus the conversation, draft **task** (seeded by the `/wiki-garden`
    argument if present), **stack** (langs/frameworks), **tools** used, and
    **outcome** (`success|partial|fail`).
 3. Draft **What worked** / **What failed / friction** / **Notes**, then present
@@ -84,18 +84,18 @@ The friction section is often the most valuable.
 Run the standalone, model-agnostic maintainer (a PEP 723 `uv` script):
 
 ```bash
-scripts/wikiskill-maintain              # compile new traces into wiki/patterns
-scripts/wikiskill-maintain --dry-run    # preview the patch-plan, change nothing
+scripts/garden-maintain              # compile new traces into wiki/patterns
+scripts/garden-maintain --dry-run    # preview the patch-plan, change nothing
 ```
 
 Backend is pluggable via env — nothing is tied to one provider:
-- `WIKISKILL_LLM=claude` (**default**) — uses the local `claude` CLI (`-p`) and
+- `WIKIGARDEN_LLM=claude` (**default**) — uses the local `claude` CLI (`-p`) and
   your existing Claude Code login; no API key, fully local.
-- `WIKISKILL_LLM=anthropic` (`ANTHROPIC_API_KEY`) — Messages API directly.
-- `WIKISKILL_LLM=openai` + `WIKISKILL_LLM_BASE_URL` (OpenAI, local vLLM, Ollama).
-- `WIKISKILL_LLM_MODEL=<id>` for any backend.
+- `WIKIGARDEN_LLM=anthropic` (`ANTHROPIC_API_KEY`) — Messages API directly.
+- `WIKIGARDEN_LLM=openai` + `WIKIGARDEN_LLM_BASE_URL` (OpenAI, local vLLM, Ollama).
+- `WIKIGARDEN_LLM_MODEL=<id>` for any backend.
 
-The same applies to `scripts/wikiskill-propose` (stages a skill proposal).
+The same applies to `scripts/garden-propose` (stages a skill proposal).
 
 The maintainer only ever adds/refines wiki knowledge; it never writes skills and
 never wipes existing patterns. Single-trace themes are recorded as
@@ -107,11 +107,11 @@ To run both steps at once — compile traces into the wiki, then stage at most o
 atomic skill proposal:
 
 ```bash
-scripts/wikiskill-evolve            # maintain, then propose
-scripts/wikiskill-evolve --dry-run  # preview both, write nothing
+scripts/garden-evolve            # maintain, then propose
+scripts/garden-evolve --dry-run  # preview both, write nothing
 ```
 
-`wikiskill-propose` reads the wiki + existing skills + the `skill-impact.jsonl`
+`garden-propose` reads the wiki + existing skills + the `skill-impact.jsonl`
 ledger and stages a proposal under `<store>/proposals/<ts>_<name>/` (SKILL.md +
 PURPOSE.md + proposal.json). It **never activates** a skill — review the staged
 proposal before promoting it into `skills/`. Proposals are conservative:
@@ -120,8 +120,8 @@ single-trace patterns are usually too weak, so `no_change` is common and fine.
 ## Optional: put scripts on PATH
 
 ```bash
-ln -sf "$PWD/scripts/wikiskill-home"     ~/.local/bin/wikiskill-home
-ln -sf "$PWD/scripts/wikiskill-maintain" ~/.local/bin/wikiskill-maintain
+ln -sf "$PWD/scripts/garden-home"     ~/.local/bin/garden-home
+ln -sf "$PWD/scripts/garden-maintain" ~/.local/bin/garden-maintain
 ```
 
 ## Notes for agents

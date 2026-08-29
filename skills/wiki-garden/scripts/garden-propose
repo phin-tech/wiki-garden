@@ -3,17 +3,17 @@
 # requires-python = ">=3.11"
 # dependencies = []
 # ///
-"""WikiSkill Skill Proposer — standalone, model-agnostic runner.
+"""Wiki Garden Skill Proposer — standalone, model-agnostic runner.
 
 Reads the wiki + existing skills + skill-impact ledger and asks an LLM for ONE
 atomic skill proposal (or no_change). The proposal is STAGED under
 <store>/proposals/ — it is never activated into <store>/skills/. Gating (Phase 4)
-promotes or rejects it. Backend/env are identical to wikiskill-maintain.
+promotes or rejects it. Backend/env are identical to garden-maintain.
 
 Usage:
-  wikiskill-propose                  # call LLM, stage a proposal
-  wikiskill-propose --dry-run        # call LLM, print proposal, write nothing
-  wikiskill-propose --plan-file p.json    # stage a given proposal (tests stager)
+  garden-propose                  # call LLM, stage a proposal
+  garden-propose --dry-run        # call LLM, print proposal, write nothing
+  garden-propose --plan-file p.json    # stage a given proposal (tests stager)
 """
 from __future__ import annotations
 
@@ -25,9 +25,9 @@ from datetime import date, datetime
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE))  # import _wsk even when invoked via a PATH symlink
-import _wsk
-from _wsk import call_llm, log, parse_json
+sys.path.insert(0, str(HERE))  # import _garden even when invoked via a PATH symlink
+import _garden
+from _garden import call_llm, log, parse_json
 
 PROMPT_FILE = HERE.parent / "prompts" / "skill-proposer.md"
 
@@ -81,14 +81,14 @@ def stage(store: Path, prop: dict, dry_run: bool) -> str | None:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="WikiSkill standalone skill proposer")
+    ap = argparse.ArgumentParser(description="Wiki Garden standalone skill proposer")
     ap.add_argument("--dry-run", action="store_true", help="print proposal, write nothing")
     ap.add_argument("--plan-file", help="stage a pre-made proposal JSON; skip the LLM")
-    ap.add_argument("--backend", default=os.environ.get("WIKISKILL_LLM", "claude"))
-    ap.add_argument("--model", default=os.environ.get("WIKISKILL_LLM_MODEL"))
+    ap.add_argument("--backend", default=os.environ.get("WIKIGARDEN_LLM", "claude"))
+    ap.add_argument("--model", default=os.environ.get("WIKIGARDEN_LLM_MODEL"))
     args = ap.parse_args()
 
-    store = _wsk.resolve_store(HERE)
+    store = _garden.resolve_store(HERE)
     (store / "proposals").mkdir(parents=True, exist_ok=True)
     log(f"store: {store}")
 

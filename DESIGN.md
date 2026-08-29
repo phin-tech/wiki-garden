@@ -1,4 +1,4 @@
-# WikiSkill — Personal Coding-Agent Adaptation
+# Wiki Garden — Personal Coding-Agent Adaptation
 
 An implementation of *WikiSkill: Compiling Agent Experience into Persistent
 Knowledge for Skill Evolution* (arXiv 2608.27454), adapted from a benchmark
@@ -7,7 +7,7 @@ stacks.
 
 The paper's insight: naive "let the agent write itself skills" loses the
 *reasoning* behind each skill, so the agent can't build on accumulated
-knowledge. WikiSkill fixes this by separating three layers — immutable traces,
+knowledge. Wiki Garden fixes this by separating three layers — immutable traces,
 a persistent wiki of patterns, and active skills — and adding discipline:
 atomic proposals, traceability from each skill back to the pattern that
 motivated it, and gated acceptance with a memory of past decisions.
@@ -20,9 +20,9 @@ is the *compiler* that turns session history into durable skills + wiki.
 | Decision | Choice |
 |---|---|
 | Gating | Human-in-the-loop diff **and** retro-eval against past real tasks |
-| Trigger | Manual `/wikiskill-evolve` **and** weekly scheduled run |
-| Code home | This repo, packaged as a skills.sh-installable skill (`skills/wikiskill`) |
-| Data home | `~/.config/wikiskill` by default (machine-local; git-init to version) |
+| Trigger | Manual `/garden-evolve` **and** weekly scheduled run |
+| Code home | This repo, packaged as a skills.sh-installable skill (`skills/wiki-garden`) |
+| Data home | `~/.config/wiki-garden` by default (machine-local; git-init to version) |
 | LLM backend | Pluggable; default `claude` CLI (no key), or `anthropic`\|`openai`-compatible |
 
 ## Code vs data (Phase 0)
@@ -30,39 +30,39 @@ is the *compiler* that turns session history into durable skills + wiki.
 Two locations, cleanly separated:
 
 **Code** — this repo, version-controlled, synced across machines. The runtime is
-packaged as a self-contained skill so WikiSkill itself is installable via
-skills.sh (`npx skills add phin-tech/wiki-skills`):
+packaged as a self-contained skill so Wiki Garden itself is installable via
+skills.sh (`npx skills add phin-tech/wiki-garden`):
 ```
-wiki-skills/
+wiki-garden/
   skills/
-    wikiskill/               # the shippable skill (skills.sh discovers SKILL.md)
+    wiki-garden/               # the shippable skill (skills.sh discovers SKILL.md)
       SKILL.md               # self-sufficient workflow: capture + consolidate
       scripts/
-        wikiskill-home       # resolves the store root portably (env/config/default)
-        wikiskill-maintain   # standalone maintainer (PEP 723 / uv, pluggable LLM)
-        wikiskill-propose    # standalone skill proposer (stages to proposals/)
-        wikiskill-evolve     # sequencer: maintain then propose (forwards flags)
-        wikiskill-gate       # gate: retro-eval + accept/reject + promote + ledger
-        _wsk.py              # shared backend + store helpers (imported, not on PATH)
+        garden-home       # resolves the store root portably (env/config/default)
+        garden-maintain   # standalone maintainer (PEP 723 / uv, pluggable LLM)
+        garden-propose    # standalone skill proposer (stages to proposals/)
+        garden-evolve     # sequencer: maintain then propose (forwards flags)
+        garden-gate       # gate: retro-eval + accept/reject + promote + ledger
+        _garden.py              # shared backend + store helpers (imported, not on PATH)
       prompts/
         wiki-maintainer.md   # model-agnostic maintainer prompt
         skill-proposer.md    # model-agnostic proposer prompt
         retro-eval.md        # model-agnostic retro-eval judge prompt
   agents/                    # Claude Code subagents (wiki-maintainer, skill-proposer)
-  commands/                  # /wikiskill-evolve (author convenience; capture lives in the skill)
+  commands/                  # /garden-evolve (author convenience; capture lives in the skill)
   install.sh                 # dev install: symlinks scripts→PATH, commands, agents, skill
   DESIGN.md
 ```
 
-Two install paths: `npx skills add phin-tech/wiki-skills` gives anyone the skill
+Two install paths: `npx skills add phin-tech/wiki-garden` gives anyone the skill
 (a snapshot copy with its bundled scripts); `./install.sh` is the author dev
 install (symlinks so `git pull` propagates, plus the slash command + subagent
 that skills.sh does not carry).
 
-**Data (the store)** — default `~/.config/wikiskill/`, auto-created, machine-local
+**Data (the store)** — default `~/.config/wiki-garden/`, auto-created, machine-local
 (git-init it yourself if you want the data versioned):
 ```
-<store>/                     # resolved by wikiskill-home (skills/wikiskill/scripts/)
+<store>/                     # resolved by garden-home (skills/wiki-garden/scripts/)
   raw/                       # immutable execution traces (append-only)
     2026-08-29T14-03_<slug>.md
   wiki/                      # persistent knowledge base (patched, never wiped)
@@ -89,7 +89,7 @@ that skills.sh does not carry).
 ---
 task_id: <uuid>
 date: <iso8601>
-source: manual | hook             # /wikiskill capture vs session-end hook
+source: manual | hook             # /wiki-garden capture vs session-end hook
 stack: [python, pytest]           # detected/declared
 outcome: success | partial | fail
 tools: [Edit, Bash, Grep]
@@ -142,16 +142,16 @@ review during gating; the machine-parsed decision ledger is JSONL; the
 
 This system is used *from within other projects* (daily eng across stacks) and
 across machines (home, work), so the store root is **resolved at runtime**, not
-hardcoded. `wikiskill-home` returns the absolute store path using the first
+hardcoded. `garden-home` returns the absolute store path using the first
 hit of:
 
-1. `$WIKISKILL_HOME` environment variable
-2. `~/.config/wikiskill/config` — a line `home=/abs/path/to/store`
+1. `$WIKIGARDEN_HOME` environment variable
+2. `~/.config/wiki-garden/config` — a line `home=/abs/path/to/store`
    (machine-local, never committed)
-3. default: `~/.config/wikiskill` — auto-created with the store skeleton on
+3. default: `~/.config/wiki-garden` — auto-created with the store skeleton on
    first call; identical path on every machine, so zero-config out of the box
 
-Every command, hook, and agent calls `wikiskill-home` instead of embedding
+Every command, hook, and agent calls `garden-home` instead of embedding
 a path.
 
 - Source of truth for commands/agents lives in this repo (`commands/`, `agents/`).
@@ -163,7 +163,7 @@ a path.
 
 Both write the same trace format above; they differ in when and how.
 
-- **`/wikiskill <task summary>`** (manual, per-task): the `wikiskill` skill's
+- **`/wiki-garden <task summary>`** (manual, per-task): the `wiki-garden` skill's
   capture flow — invoked when something worth remembering just happened. It reads
   the current session context and prompts for the parts it can't infer, producing
   a deliberate high-signal trace. This is the primary, highest-quality fuel for
@@ -181,13 +181,13 @@ Both write the same trace format above; they differ in when and how.
 
 ## Agent roles
 
-- **Wiki Maintainer** (`agents/wiki-maintainer` + `wikiskill-maintain`):
+- **Wiki Maintainer** (`agents/wiki-maintainer` + `garden-maintain`):
   reads recent `raw/` traces + current wiki, emits **patch ops**
   (create/append/replace) to `wiki/`. Runs on every iteration and its output
   persists *regardless* of any skill decision — the wiki is the long-term memory
   even when no skill changes. Runnable via Claude Code subagent OR the
   standalone, model-agnostic runner (see Execution model).
-- **Skill Proposer** (`agents/skill-proposer` + `wikiskill-propose`): reads wiki
+- **Skill Proposer** (`agents/skill-proposer` + `garden-propose`): reads wiki
   patterns + existing skills + the ledger, proposes **exactly one atomic** skill
   change (new skill or edit) — or `no_change`. Stages it under
   `proposals/<ts>_<name>/` (SKILL.md + PURPOSE.md + proposal.json); it **never
@@ -206,10 +206,10 @@ runs two ways over the **same model-agnostic prompt**:
 
 - **Interactive (Claude Code)**: the subagent under `agents/` — convenient
   inside a session, uses Claude Code's tools directly.
-- **Standalone (any LLM)**: deterministic runners (`wikiskill-maintain`,
-  `wikiskill-propose`) that do NOT need a tool-using agent. The LLM is asked for
+- **Standalone (any LLM)**: deterministic runners (`garden-maintain`,
+  `garden-propose`) that do NOT need a tool-using agent. The LLM is asked for
   a **JSON plan**; plain code validates and applies/stages it. Shared backend +
-  store helpers live in `scripts/_wsk.py`.
+  store helpers live in `scripts/_garden.py`.
 
 ### Patch-plan contract
 
@@ -232,19 +232,19 @@ local models) and keeps filesystem mutation in audited, deterministic code.
 ### Pluggable backend
 
 LLM access goes through one thin adapter selected by env:
-- `WIKISKILL_LLM=claude` (**default**) — shells out to the local `claude` CLI
+- `WIKIGARDEN_LLM=claude` (**default**) — shells out to the local `claude` CLI
   (`claude -p --system-prompt …`), using the existing Claude Code login. No API
   key, fully local, zero setup — the recommended way to run locally.
-- `WIKISKILL_LLM=anthropic` — Messages API (`ANTHROPIC_API_KEY`)
-- `WIKISKILL_LLM=openai` — OpenAI-compatible `/chat/completions`; set
-  `WIKISKILL_LLM_BASE_URL` to point at OpenAI, a local vLLM, or Ollama
-- `WIKISKILL_LLM_MODEL` — model id for the chosen backend
+- `WIKIGARDEN_LLM=anthropic` — Messages API (`ANTHROPIC_API_KEY`)
+- `WIKIGARDEN_LLM=openai` — OpenAI-compatible `/chat/completions`; set
+  `WIKIGARDEN_LLM_BASE_URL` to point at OpenAI, a local vLLM, or Ollama
+- `WIKIGARDEN_LLM_MODEL` — model id for the chosen backend
 
 Because the default backend is the `claude` CLI, "Claude-independent" means the
 *architecture* isn't bound to it (swap one env var for a local model), not that
 Claude is avoided — the default deliberately uses the login you already have.
 
-Runner is a **PEP 723 / `uv run` script** (`wikiskill-maintain`) — inline
+Runner is a **PEP 723 / `uv run` script** (`garden-maintain`) — inline
 script metadata, launched via `#!/usr/bin/env -S uv run --script`, stdlib-only
 (urllib + json, zero declared deps) so `uv` pins the interpreter with nothing to
 install. Flags: `--dry-run` (print plan, mutate nothing) and `--plan-file`
@@ -253,8 +253,8 @@ applier testable without any API key.
 
 ## Skills Layer — skills.sh compatible
 
-Two things are skills.sh-installable: **WikiSkill itself** (the `skills/wikiskill`
-skill above) and the **skills WikiSkill evolves** (Skills Layer output). Both use
+Two things are skills.sh-installable: **Wiki Garden itself** (the `skills/wiki-garden`
+skill above) and the **skills Wiki Garden evolves** (Skills Layer output). Both use
 the `skills` CLI (`npx skills add <owner/repo>`, github.com/vercel-labs/skills):
 
 - A skill is a directory `skills/<name>/SKILL.md` with YAML frontmatter
@@ -267,7 +267,7 @@ the `skills` CLI (`npx skills add <owner/repo>`, github.com/vercel-labs/skills):
 - Set `metadata.internal: true` in frontmatter to keep a skill out of the
   public skills.sh directory while still installable.
 
-## Evolution iteration (one run of `/wikiskill-evolve`)
+## Evolution iteration (one run of `/garden-evolve`)
 
 1. Collect `raw/` traces since last iteration.
 2. Wiki Maintainer patches `wiki/` → commit (wiki always advances).
@@ -279,30 +279,30 @@ the `skills` CLI (`npx skills add <owner/repo>`, github.com/vercel-labs/skills):
 
 ## Build phases
 
-- **Phase 0** — ✅ store contract, portable resolver (`wikiskill-home`),
+- **Phase 0** — ✅ store contract, portable resolver (`garden-home`),
   installer, README.
-- **Phase 1** — trace capture. ✅ `/wikiskill` skill capture flow (manual,
+- **Phase 1** — trace capture. ✅ `/wiki-garden` skill capture flow (manual,
   per-task). ◻ session-end hook (automatic, per-session) → `raw/`.
 - **Phase 2** — Wiki Maintainer. ✅ Claude Code subagent (prompt validated on a
-  real trace → 3 patterns). ✅ standalone `wikiskill-maintain` (PEP 723/uv,
+  real trace → 3 patterns). ✅ standalone `garden-maintain` (PEP 723/uv,
   JSON patch-plan, pluggable anthropic|openai backend); applier validated across
   all op types via `--plan-file`. ◻ live LLM smoke-test (needs an API key/local
   model).
 - **Phase 3** — Skill Proposer. ✅ Claude Code subagent + standalone
-  `wikiskill-propose` (PEP 723/uv, shared `_wsk.py`); stages atomic, traceable
+  `garden-propose` (PEP 723/uv, shared `_garden.py`); stages atomic, traceable
   proposals to `proposals/` without activating; stager validated via `--plan-file`.
   ✅ live LLM smoke-test via `claude` backend (no key).
-- **Phase 4** — gating. ✅ `wikiskill-gate` (retro-eval LLM judge over
+- **Phase 4** — gating. ✅ `garden-gate` (retro-eval LLM judge over
   `eval/stash/`, advisory + skip-when-empty; human accept/reject; `skill-impact.jsonl`
   writes on both; promote `proposals/`→`skills/`; install to `~/.claude/skills`) +
-  `/wikiskill-gate` command. Accept/reject/retro all validated (retro live).
-- **Phase 5** — orchestration. ✅ `wikiskill-evolve` sequencer (maintain→propose)
-  + `/wikiskill-evolve` command. ◻ insert the gate between propose and activate;
+  `/garden-gate` command. Accept/reject/retro all validated (retro live).
+- **Phase 5** — orchestration. ✅ `garden-evolve` sequencer (maintain→propose)
+  + `/garden-evolve` command. ◻ insert the gate between propose and activate;
   ◻ weekly schedule.
 
 ## Open questions
 
-- Trace granularity is now resolved: `/wikiskill` capture handles per-task
+- Trace granularity is now resolved: `/wiki-garden` capture handles per-task
   (deliberate, high-signal) and the hook handles per-session (safety net).
   Remaining question: should the hook be opt-in per session to avoid noise?
 - `eval/stash/` seeding: retro-eval is only as good as the stash. Start by

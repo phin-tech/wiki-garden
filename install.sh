@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Dev install of WikiSkill for the author's own machine. Symlinks everything so
+# Dev install of Wiki Garden for the author's own machine. Symlinks everything so
 # `git pull` here auto-updates installed copies. (End users can instead install
-# just the skill via:  npx skills add phin-tech/wiki-skills)
+# just the skill via:  npx skills add phin-tech/wiki-garden)
 #
-#   skills/wikiskill/scripts/*  -> ~/.local/bin/            (on PATH)
+#   skills/wiki-garden/scripts/*  -> ~/.local/bin/            (on PATH)
 #   commands/*.md               -> ~/.claude/commands/       (slash commands)
 #   agents/*.md                 -> ~/.claude/agents/         (subagents)
-#   skills/wikiskill            -> ~/.claude/skills/wikiskill (skill discovery)
+#   skills/wiki-garden            -> ~/.claude/skills/wiki-garden (skill discovery)
 set -euo pipefail
 
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -16,7 +16,7 @@ link() { mkdir -p "$(dirname "$2")"; ln -sfn "$1" "$2"; echo "  $2 -> $1"; }
 echo "installing from $repo"
 
 echo "scripts (PATH):"
-for f in "$repo"/skills/wikiskill/scripts/*; do
+for f in "$repo"/skills/wiki-garden/scripts/*; do
   [[ -f "$f" && -x "$f" ]] || continue
   link "$f" "$HOME/.local/bin/$(basename "$f")"
 done
@@ -34,9 +34,9 @@ for f in "$repo"/agents/*.md; do
 done
 
 echo "skill:"
-link "$repo/skills/wikiskill" "$HOME/.claude/skills/wikiskill"
+link "$repo/skills/wiki-garden" "$HOME/.claude/skills/wiki-garden"
 
-store="$("$repo/skills/wikiskill/scripts/wikiskill-home")"
+store="$("$repo/skills/wiki-garden/scripts/garden-home")"
 echo "store: $store"
 
 case ":$PATH:" in

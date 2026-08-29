@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # One evolution iteration: consolidate traces into the wiki, then propose one
-# atomic skill (staged, not activated). A thin sequencer over wikiskill-maintain
-# and wikiskill-propose — forwards flags (--dry-run, --backend, --model) to both.
+# atomic skill (staged, not activated). A thin sequencer over garden-maintain
+# and garden-propose — forwards flags (--dry-run, --backend, --model) to both.
 #
 # Gating (retro-eval + human diff) is Phase 4 and will slot in after propose.
 set -euo pipefail
@@ -10,12 +10,12 @@ set -euo pipefail
 # symlinked into the same bin dir) and as a skills.sh-copied bundle.
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo "== wikiskill: maintain (traces -> wiki) =="
-"$DIR/wikiskill-maintain" "$@"
+echo "== wiki-garden: maintain (traces -> wiki) =="
+"$DIR/garden-maintain" "$@"
 
 echo
-echo "== wikiskill: propose (wiki -> staged skill) =="
-"$DIR/wikiskill-propose" "$@"
+echo "== wiki-garden: propose (wiki -> staged skill) =="
+"$DIR/garden-propose" "$@"
 
 echo
 echo "== done. review any staged proposal under <store>/proposals/ before gating. =="
