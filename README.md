@@ -97,6 +97,19 @@ recommended.
   empty); accept promotes `proposals/`→`skills/`, installs to `~/.claude/skills`,
   and records the decision in `skill-impact.jsonl`.
 
+### Tools layer
+
+Beside skills, Wiki Garden can promote an ephemeral script into a reusable CLI
+**tool**:
+
+- `garden-tool --from <script>` (`/garden-tool`) — generalizes a one-off script
+  (lifts hardcoded values into flags, strips secrets, adds `--help`, targets your
+  runtime) and stages it under `tool-proposals/` for review. Never installed
+  until gated. `--dry-run` previews; `--runtime bash|uv|node` overrides the
+  default.
+- Config in `~/.config/wiki-garden/config`: `tool_prefix` (default `gt-`) and
+  `tool_runtime` (default `bash`).
+
 ## Status
 
 Early build. Implemented: store resolution + scaffolding. In progress: trace

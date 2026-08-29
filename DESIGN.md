@@ -77,6 +77,10 @@ that skills.sh does not carry).
       PURPOSE.md             # traceability: which wiki pattern(s) motivated it
   proposals/                 # staged, ungated skill proposals awaiting the gate
     <ts>_<skill-name>/       # SKILL.md + PURPOSE.md + proposal.json
+  tools/                     # active (gated-in) executables — the tools layer
+    <name>/                  # <prefix><name> executable + TOOL.md + PURPOSE.md
+  tool-proposals/            # staged, ungated tool proposals awaiting the gate
+    <ts>_<name>/             # <prefix><name> + TOOL.md + PURPOSE.md + proposal.json
   eval/
     stash/                   # curated past real tasks for retro-eval
     results/                 # retro-eval outputs per proposal
@@ -266,6 +270,36 @@ the `skills` CLI (`npx skills add <owner/repo>`, github.com/vercel-labs/skills):
   a dedicated published skills repo.
 - Set `metadata.internal: true` in frontmatter to keep a skill out of the
   public skills.sh directory while still installable.
+
+## Tools layer
+
+A second active layer beside skills: where a **skill** is advisory markdown, a
+**tool** is a reusable **executable** promoted from an ephemeral script. Same
+compiler (`raw → wiki → {skills, tools}`), same propose→stage→gate pipeline;
+different artifact.
+
+- **Capture** (`garden-tool` + `/garden-tool`): take a raw one-off script → an
+  LLM **generalizer** lifts hardcoded values into flags, **strips secrets**
+  (env/credential-chain instead), adds `--help`, targets the configured runtime,
+  and defaults destructive scripts to a preview posture. Staged under
+  `tool-proposals/` — never installed until gated.
+- **Config** (machine-local, in `~/.config/wiki-garden/config`):
+  ```
+  tool_prefix  = gt-     # namespaces every tool (tab-completable); user-set
+  tool_runtime = bash    # default runtime: bash | uv | node; per-tool override
+  ```
+- **Gate** (T2, planned): mandatory **human code review** (it's executable);
+  retro-eval is **static** ("safe / correct / general?"), never executed. Accept
+  → move to `tools/`, symlink `<prefix><name>` onto PATH, record in the ledger.
+- **Discovery** (T3, planned): a generated **Runme-compatible catalog**, surfaced
+  as a `wiki-garden-tools` skill, so the agent reaches for a tool instead of
+  rewriting it. Executable = canonical artifact; catalog = index + docs.
+- **Auto-mine** (T4, planned): mine traces for recurring scripts and propose
+  promoting them (the ambient path; manual capture is T1).
+
+Tool build phases: **T1 ✅** capture + generalize + stage (`garden-tool`,
+`tool-generalizer.md`, config keys, store dirs; stager + live generalization with
+secret-stripping validated). **T2** gate. **T3** catalog skill. **T4** auto-mine.
 
 ## Evolution iteration (one run of `/garden-evolve`)
 

@@ -38,6 +38,31 @@ def resolve_store(here: Path) -> Path:
     return Path(env) if env else Path.home() / ".config" / "wiki-garden"
 
 
+def config_file() -> Path:
+    """The machine-local config file garden-home also reads (home=, tool_*=)."""
+    xdg = os.environ.get("XDG_CONFIG_HOME") or str(Path.home() / ".config")
+    return Path(xdg) / "wiki-garden" / "config"
+
+
+def read_config() -> dict:
+    cfg = {}
+    f = config_file()
+    if f.exists():
+        for ln in f.read_text().splitlines():
+            ln = ln.strip()
+            if not ln or ln.startswith("#") or "=" not in ln:
+                continue
+            k, v = ln.split("=", 1)
+            cfg[k.strip()] = v.strip()
+    return cfg
+
+
+def tool_settings() -> tuple[str, str]:
+    """(tool_prefix, tool_runtime) from config, with defaults."""
+    c = read_config()
+    return c.get("tool_prefix", "gt-"), c.get("tool_runtime", "bash")
+
+
 # ---------------------------------------------------------------- llm
 
 def call_llm(system: str, user: str, backend: str, model: str | None) -> str:

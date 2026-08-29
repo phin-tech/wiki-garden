@@ -47,7 +47,7 @@ fi
 # 3. default: ~/.config/wiki-garden, auto-created with the store skeleton
 default="$(config_root)"
 if [[ ! -d "$default" ]]; then
-  mkdir -p "$default"/{raw,wiki/patterns,skills,proposals,eval/stash,eval/results}
+  mkdir -p "$default"/{raw,wiki/patterns,skills,proposals,tools,tool-proposals,eval/stash,eval/results}
   # skill-impact is JSONL: one decision record per line, machine-queried by the
   # Skill Proposer. Schema per record:
   #   {"date","proposal","pattern","human","retro","decision","note"}
