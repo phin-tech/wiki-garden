@@ -1,0 +1,15 @@
+{
+  "extends": "@tsconfig/svelte/tsconfig.json",
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "paths": { "@kit-ui": ["./vendor/kit-ui/lib"], "@kit-ui/*": ["./vendor/kit-ui/lib/*"] }
+  },
+  "include": ["src/**/*.ts", "src/**/*.svelte", "vendor/kit-ui/lib/**/*"]
+}

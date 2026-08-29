@@ -1,0 +1,242 @@
+<script module lang="ts">
+  export type TextInputSize = "sm" | "md" | "lg";
+</script>
+
+<script lang="ts">
+  import type { Snippet } from "svelte";
+
+  interface Props {
+    /** Current text (bindable). */
+    value?: string;
+    /** Input type. Text-like types only — date/checkbox/radio/etc. have
+     * their own chrome and don't belong in this wrapper. */
+    type?: "text" | "search" | "email" | "url" | "password" | "tel";
+    placeholder?: string;
+    /** sm = 24px, md = 28px tall — the shared toolbar control heights. */
+    size?: TextInputSize;
+    /** Red border + aria-invalid, e.g. failed validation. */
+    invalid?: boolean;
+    disabled?: boolean;
+    readonly?: boolean;
+    required?: boolean;
+    /** Stretch to the container width (default shrink-wraps ~180px). */
+    block?: boolean;
+    id?: string;
+    name?: string;
+    /** Accessible name when there is no associated `<label for>`. */
+    ariaLabel?: string;
+    /** Combobox wiring for fields that drive a listbox (CommandPalette):
+     * set `role="combobox"` and point these at the list and the
+     * highlighted option so keyboard navigation is announced. */
+    role?: "combobox";
+    ariaExpanded?: boolean;
+    ariaControls?: string;
+    ariaActivedescendant?: string;
+    ariaAutocomplete?: "list" | "inline" | "both" | "none";
+    ariaDescribedby?: string;
+    /** Focus the input when it mounts. */
+    autofocus?: boolean;
+    autocomplete?: HTMLInputElement["autocomplete"];
+    oninput?: (value: string) => void;
+    onchange?: (value: string) => void;
+    onkeydown?: (event: KeyboardEvent) => void;
+    onblur?: () => void;
+    /** Leading adornment inside the border (icon, unit). */
+    prefix?: Snippet;
+    /** Trailing adornment inside the border (icon, clear button, kbd). */
+    suffix?: Snippet;
+    /** The underlying input element (bindable) — for focus management. */
+    inputEl?: HTMLInputElement;
+    class?: string;
+  }
+
+  let {
+    value = $bindable(""),
+    type = "text",
+    placeholder = undefined,
+    size = "md",
+    invalid = false,
+    disabled = false,
+    readonly = false,
+    required = false,
+    block = false,
+    id = undefined,
+    name = undefined,
+    ariaLabel = undefined,
+    role = undefined,
+    ariaExpanded = undefined,
+    ariaControls = undefined,
+    ariaActivedescendant = undefined,
+    ariaAutocomplete = undefined,
+    ariaDescribedby = undefined,
+    autofocus = false,
+    autocomplete = undefined,
+    oninput = undefined,
+    onchange = undefined,
+    onkeydown = undefined,
+    onblur = undefined,
+    prefix = undefined,
+    suffix = undefined,
+    inputEl = $bindable(undefined),
+    class: className = "",
+  }: Props = $props();
+
+  function focusOnMount(node: HTMLInputElement): void {
+    if (autofocus) node.focus();
+  }
+
+  function handleInput(event: Event): void {
+    value = (event.currentTarget as HTMLInputElement).value;
+    oninput?.(value);
+  }
+</script>
+
+<!-- The wrapper carries all the chrome (border, focus, invalid) so prefix/
+     suffix adornments sit inside the field; the input itself is chromeless.
+     `type` stays dynamic, so value syncs via the input handler instead of
+     bind:value (Svelte requires a static type for two-way binding). -->
+<div
+  class={["kit-text-input", `kit-text-input--${size}`, className]}
+  class:kit-text-input--invalid={invalid}
+  class:kit-text-input--block={block}
+  class:kit-text-input--disabled={disabled}
+>
+  {#if prefix}
+    <span class="kit-text-input__adornment">{@render prefix()}</span>
+  {/if}
+  <input
+    bind:this={inputEl}
+    class="kit-text-input__control"
+    {type}
+    {value}
+    {placeholder}
+    {disabled}
+    {readonly}
+    {required}
+    {id}
+    {name}
+    {autocomplete}
+    aria-label={ariaLabel}
+    aria-invalid={invalid ? "true" : undefined}
+    {role}
+    aria-expanded={ariaExpanded}
+    aria-controls={ariaControls}
+    aria-activedescendant={ariaActivedescendant}
+    aria-autocomplete={ariaAutocomplete}
+    aria-describedby={ariaDescribedby}
+    oninput={handleInput}
+    onchange={(event) => onchange?.((event.currentTarget as HTMLInputElement).value)}
+    {onkeydown}
+    {onblur}
+    {@attach focusOnMount}
+  />
+  {#if suffix}
+    <span class="kit-text-input__adornment">{@render suffix()}</span>
+  {/if}
+</div>
+
+<style>
+  .kit-text-input {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 180px;
+    max-width: 100%;
+    padding: 0 var(--space-3);
+    background: var(--bg-surface);
+    border: var(--border-width) solid var(--border-default);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    transition: border-color var(--transition-fast) var(--transition-ease, ease);
+  }
+
+  .kit-text-input--sm {
+    height: 24px;
+    font-size: var(--font-size-xs);
+  }
+
+  .kit-text-input--md {
+    height: 28px;
+    font-size: var(--font-size-sm);
+  }
+
+  .kit-text-input--lg {
+    min-height: 36px;
+    padding: 5px var(--space-5);
+    font-size: var(--font-size-md);
+  }
+
+  .kit-text-input--block {
+    display: flex;
+    width: 100%;
+  }
+
+  .kit-text-input:focus-within {
+    border-color: var(--accent-blue);
+  }
+
+  .kit-text-input--invalid,
+  .kit-text-input--invalid:focus-within {
+    border-color: var(--accent-red);
+  }
+
+  .kit-text-input--disabled {
+    opacity: var(--opacity-disabled);
+  }
+
+  .kit-text-input__control {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: normal;
+    color: inherit;
+  }
+
+  .kit-text-input__control:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  .kit-text-input__control:focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  @supports selector(:has(*)) {
+    .kit-text-input:has(.kit-text-input__control:focus-visible) {
+      outline: var(--focus-ring);
+      outline-offset: 2px;
+    }
+
+    .kit-text-input__control:focus-visible {
+      outline: none;
+    }
+  }
+
+  .kit-text-input__control::placeholder {
+    color: var(--text-muted);
+  }
+
+  .kit-text-input__control:disabled {
+    cursor: default;
+  }
+
+  /* type="search": the wrapper owns the clear affordance (SearchInput),
+   * so suppress the native webkit cancel button. */
+  .kit-text-input__control::-webkit-search-cancel-button,
+  .kit-text-input__control::-webkit-search-decoration {
+    -webkit-appearance: none;
+  }
+
+  .kit-text-input__adornment {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    color: var(--text-muted);
+  }
+</style>

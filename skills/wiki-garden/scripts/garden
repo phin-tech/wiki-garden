@@ -26,6 +26,7 @@ import typer
 import _garden
 import _skills
 import _tools
+import _web
 
 app = typer.Typer(no_args_is_help=True, add_completion=False,
                   help="Wiki Garden — compile session experience into skills + tools.")
@@ -42,6 +43,14 @@ PROJECT = typer.Option(None, "--project-dir", help="Repo for project scope (defa
 def home():
     """Print the resolved store path."""
     print(_garden.store_root())
+
+
+@app.command()
+def tend(host: str = typer.Option("127.0.0.1", "--host", help="Bind address"),
+         port: int = typer.Option(8787, "--port", help="Port"),
+         no_open: bool = typer.Option(False, "--no-open", help="Don't open a browser")):
+    """Open the local web UI to browse and tend the garden (accept/reject in a browser)."""
+    _web.serve(host, port, open_browser=not no_open)
 
 
 @app.command()

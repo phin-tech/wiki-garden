@@ -1,0 +1,365 @@
+<script lang="ts">
+  import CheckIcon from "@lucide/svelte/icons/check";
+  import ChevronDownIcon from "@lucide/svelte/icons/chevron-down";
+  import { tick } from "svelte";
+  import { autoReposition, dismissable } from "../utils/popover.js";
+  import { floatingPopoverStyle } from "./floatingPosition.js";
+  import type { SelectDropdownIndicator, SelectDropdownOption } from "./select-dropdown.js";
+
+  interface Props {
+    value: string;
+    options: SelectDropdownOption[];
+    onchange: (value: string) => void;
+    title?: string;
+    disabled?: boolean;
+    /** Menu edge to align with the trigger. Keep the default `start` —
+     * the menu clamps/flips itself when the viewport runs out of room. */
+    align?: "start" | "end";
+    class?: string;
+  }
+
+  let {
+    value,
+    options,
+    onchange,
+    title,
+    disabled = false,
+    align = "start",
+    class: className = "",
+  }: Props = $props();
+
+  let open = $state(false);
+  let highlightedIndex = $state(0);
+  let containerEl = $state<HTMLDivElement>();
+  let buttonEl = $state<HTMLButtonElement>();
+  let listEl = $state<HTMLDivElement>();
+  let listStyle = $state("");
+
+  const dropdownID = $props.id();
+  const listboxID = `${dropdownID}-listbox`;
+
+  // Unlike a native select element, an unmatched `value` does not render blank:
+  // it falls back to the first option. Callers that feed `options` from a
+  // filtered or async list must keep `value` consistent with the visible
+  // options (or derive anything used for submission with the same fallback),
+  // otherwise the trigger can show one option while submit acts on a stale value.
+  const selectedOption = $derived(options.find((option) => option.value === value) ?? options[0]);
+  const triggerText = $derived(selectedOption?.triggerLabel ?? selectedOption?.label ?? value);
+  // aria-label on the trigger overrides its contents for assistive tech, so
+  // the selected option's indicator title must be folded in here — the dot's
+  // own label never reaches the accessible name.
+  const triggerLabel = $derived.by(() => {
+    const base = title ? `${title}: ${triggerText}` : triggerText;
+    const note = selectedOption?.indicator?.title;
+    return note ? `${base} (${note})` : base;
+  });
+
+  $effect(() => {
+    if (!open) return;
+    const cleanups = [
+      dismissable({
+        owners: () => [containerEl],
+        dismiss: () => (open = false),
+        escapeFocus: () => buttonEl,
+      }),
+      // Follow async list changes and container-driven trigger reflow.
+      autoReposition(() => [listEl, buttonEl, containerEl], positionList),
+    ];
+    return () => cleanups.forEach((cleanup) => cleanup());
+  });
+
+  // Fixed positioning so the menu is never clipped by an overflow-hidden
+  // ancestor: aligned to the trigger's start edge, clamped to the viewport,
+  // flipped above when there is no room below.
+  function positionList(): void {
+    if (!buttonEl || !listEl) return;
+    const trigger = buttonEl.getBoundingClientRect();
+    const width = Math.max(listEl.offsetWidth, trigger.width);
+    listStyle = `${floatingPopoverStyle({
+      trigger,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      popoverWidth: width,
+      popoverHeight: listEl.offsetHeight,
+      align,
+      triggerGap: 2,
+    })}; min-width: ${Math.round(trigger.width)}px`;
+  }
+
+  async function openDropdown(): Promise<void> {
+    if (disabled) return;
+    open = !open;
+    highlightedIndex = Math.max(
+      0,
+      options.findIndex((option) => option.value === value),
+    );
+    if (open) {
+      await tick();
+      positionList();
+      // Long lists scroll internally — bring the selected option into view.
+      document.getElementById(optionID(highlightedIndex))?.scrollIntoView({ block: "nearest" });
+    }
+  }
+
+  function selectOption(option: SelectDropdownOption): void {
+    if (disabled || option.disabled) return;
+    onchange(option.value);
+    open = false;
+    buttonEl?.focus();
+  }
+
+  function moveHighlight(delta: number): void {
+    if (options.length === 0) return;
+    let next = highlightedIndex;
+    for (let i = 0; i < options.length; i += 1) {
+      next = (next + delta + options.length) % options.length;
+      if (!options[next]?.disabled) {
+        highlightedIndex = next;
+        // The list scrolls internally when it caps out; keep the
+        // highlighted option in view during keyboard navigation.
+        document.getElementById(optionID(next))?.scrollIntoView({ block: "nearest" });
+        return;
+      }
+    }
+  }
+
+  function optionID(index: number): string {
+    return `${dropdownID}-option-${index}`;
+  }
+
+  function onFocusout(event: FocusEvent): void {
+    const nextTarget = event.relatedTarget as Node | null;
+    if (nextTarget && containerEl?.contains(nextTarget)) return;
+    open = false;
+  }
+
+  function onButtonKeydown(event: KeyboardEvent): void {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      if (!open) {
+        openDropdown();
+      } else {
+        moveHighlight(1);
+      }
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      if (!open) {
+        openDropdown();
+      } else {
+        moveHighlight(-1);
+      }
+    } else if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      if (!open) {
+        openDropdown();
+        return;
+      }
+      const option = options[highlightedIndex];
+      if (option) selectOption(option);
+    }
+  }
+</script>
+
+<!-- Option status dot. In the option rows the role="img" label joins the
+     option's accessible name; on the trigger the title is folded into
+     triggerLabel instead (aria-label overrides content). A titleless dot is
+     decorative — hidden from assistive tech. -->
+{#snippet indicatorDot(indicator: SelectDropdownIndicator)}
+  <span
+    class="kit-select-dropdown__indicator"
+    data-kit-tone={indicator.tone && indicator.tone !== "neutral" ? indicator.tone : undefined}
+    title={indicator.title}
+    role={indicator.title ? "img" : undefined}
+    aria-label={indicator.title}
+    aria-hidden={indicator.title ? undefined : true}
+  ></span>
+{/snippet}
+
+<div class={["kit-select-dropdown", className]} bind:this={containerEl} onfocusout={onFocusout}>
+  <button
+    bind:this={buttonEl}
+    class="kit-select-dropdown__trigger kit-control-states"
+    type="button"
+    role="combobox"
+    onclick={openDropdown}
+    onkeydown={onButtonKeydown}
+    aria-haspopup="listbox"
+    aria-expanded={open}
+    aria-controls={listboxID}
+    aria-activedescendant={open ? optionID(highlightedIndex) : undefined}
+    aria-label={triggerLabel}
+    {title}
+    {disabled}
+  >
+    <span class="kit-select-dropdown__value">{triggerText}</span>
+    {#if selectedOption?.indicator}
+      {@render indicatorDot(selectedOption.indicator)}
+    {/if}
+    <ChevronDownIcon
+      class="kit-select-dropdown__chevron"
+      size="12"
+      strokeWidth="2"
+      aria-hidden="true"
+    />
+  </button>
+
+  {#if open}
+    <div
+      id={listboxID}
+      class="kit-select-dropdown__list kit-popover-card"
+      role="listbox"
+      style={listStyle}
+      bind:this={listEl}
+    >
+      {#each options as option, index (option.value)}
+        <button
+          id={optionID(index)}
+          type="button"
+          tabindex="-1"
+          class="kit-select-dropdown__option kit-control-states"
+          class:highlighted={index === highlightedIndex}
+          class:selected={option.value === value}
+          role="option"
+          aria-selected={option.value === value}
+          disabled={disabled || option.disabled}
+          onclick={() => selectOption(option)}
+          onmouseenter={() => {
+            highlightedIndex = index;
+          }}
+        >
+          <span class="kit-select-dropdown__option-label">
+            {option.label}
+            {#if option.indicator}
+              {@render indicatorDot(option.indicator)}
+            {/if}
+          </span>
+          <span class="kit-select-dropdown__check">
+            {#if option.value === value}
+              <CheckIcon size="12" strokeWidth="2.2" aria-hidden="true" />
+            {/if}
+          </span>
+        </button>
+      {/each}
+    </div>
+  {/if}
+</div>
+
+<style>
+  .kit-select-dropdown {
+    position: relative;
+    min-width: 150px;
+  }
+
+  .kit-select-dropdown__trigger {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    height: var(--kit-control-height, 26px);
+    padding: 0 8px;
+    background: var(--bg-inset);
+    border: var(--border-width) solid var(--border-muted);
+    border-radius: var(--kit-control-radius, var(--radius-sm));
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: var(--kit-control-font-size, var(--font-size-xs));
+    font-weight: var(--font-weight-semibold, 600);
+    text-align: left;
+    transition:
+      border-color var(--transition-fast) var(--transition-ease, ease),
+      color var(--transition-fast) var(--transition-ease, ease),
+      background var(--transition-fast) var(--transition-ease, ease);
+  }
+
+  .kit-select-dropdown__trigger:hover:not(:disabled),
+  .kit-select-dropdown__trigger[aria-expanded="true"] {
+    border-color: var(--border-default);
+    color: var(--text-primary);
+  }
+
+  .kit-select-dropdown__trigger:disabled {
+    cursor: default;
+    opacity: var(--opacity-disabled);
+  }
+
+  .kit-select-dropdown__value {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  :global(.kit-select-dropdown__chevron) {
+    flex-shrink: 0;
+    opacity: 0.55;
+  }
+
+  .kit-select-dropdown__list {
+    position: fixed;
+    z-index: var(--z-popover);
+    width: max-content;
+    max-width: min(280px, calc(100vw - 16px));
+    max-height: min(320px, calc(100vh - 16px));
+    overflow-y: auto;
+    padding: 2px;
+  }
+
+  .kit-select-dropdown__option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 5px 8px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: var(--font-size-xs);
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  .kit-select-dropdown__option.highlighted,
+  .kit-select-dropdown__option:hover:not(:disabled) {
+    background: var(--bg-surface-hover);
+    color: var(--text-primary);
+  }
+
+  .kit-select-dropdown__option.selected {
+    color: var(--accent-blue);
+    font-weight: var(--font-weight-semibold, 600);
+  }
+
+  .kit-select-dropdown__option:disabled {
+    cursor: default;
+    opacity: var(--opacity-disabled);
+  }
+
+  .kit-select-dropdown__option-label {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  /* Neutral (tone-less) dots fall back to muted; data-kit-tone resolves
+   * --kit-tone for the semantic tones via the shared theme map. */
+  .kit-select-dropdown__indicator {
+    width: 6px;
+    height: 6px;
+    border-radius: var(--radius-dot, 50%);
+    background: var(--kit-tone, var(--text-muted));
+    flex-shrink: 0;
+  }
+
+  .kit-select-dropdown__check {
+    display: inline-flex;
+    width: 12px;
+    color: currentColor;
+  }
+</style>

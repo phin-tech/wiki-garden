@@ -75,6 +75,13 @@ recommended.
 
 ## Commands
 
+- `garden tend` — open a local web UI to browse and **tend** the garden: review
+  staged skill proposals and tools and accept/reject them from the browser, and
+  read patterns, traces, and the evolution log. Serves a compiled Svelte app
+  (built from `web/`, shipped in `skills/wiki-garden/web-dist/`) over a
+  stdlib HTTP server — no JS toolchain needed at runtime. `--port` / `--host`
+  to change the bind, `--no-open` to skip auto-opening the browser. See
+  [`web/README.md`](web/README.md) for the build process.
 - `/wiki-garden <task summary>` — capture a structured trace of what just happened
   into `raw/` (the `wiki-garden` skill). Run it whenever a task taught you
   something worth keeping. With no argument it can also run consolidation.
