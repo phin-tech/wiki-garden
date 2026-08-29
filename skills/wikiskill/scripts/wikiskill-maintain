@@ -1,0 +1,210 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = []
+# ///
+"""WikiSkill Wiki Maintainer — standalone, model-agnostic runner.
+
+Consolidates unprocessed raw/ traces into the persistent wiki/ layer without
+depending on Claude Code. The LLM only returns a JSON patch-plan; this script
+validates and applies it deterministically.
+
+Backend is pluggable via env:
+  WIKISKILL_LLM        claude | anthropic | openai    (default: claude)
+  WIKISKILL_LLM_MODEL  model id                       (backend-specific default)
+  WIKISKILL_LLM_BASE_URL   OpenAI-compatible base url (e.g. local vLLM / Ollama)
+  - claude:    uses the local `claude` CLI (-p) and your Claude Code login; no key
+  - anthropic: Messages API, needs ANTHROPIC_API_KEY
+  - openai:    OpenAI-compatible endpoint, OPENAI_API_KEY (or none for local)
+
+Usage:
+  wikiskill-maintain                 # call LLM, apply plan
+  wikiskill-maintain --dry-run       # call LLM, print plan, apply nothing
+  wikiskill-maintain --plan-file p.json   # skip LLM, apply a given plan (tests applier)
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import sys
+from datetime import date
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))  # import _wsk even when invoked via a PATH symlink
+import _wsk
+from _wsk import call_llm, die, log, parse_json
+
+PROMPT_FILE = HERE.parent / "prompts" / "wiki-maintainer.md"
+
+
+def resolve_store() -> Path:
+    return _wsk.resolve_store(HERE)
+
+
+def unprocessed_traces(store: Path) -> list[str]:
+    raw = store / "raw"
+    processed = store / "wiki" / ".processed.log"
+    done = set()
+    if processed.exists():
+        done = {ln.strip() for ln in processed.read_text().splitlines() if ln.strip()}
+    if not raw.exists():
+        return []
+    return sorted(f.name for f in raw.glob("*.md") if f.name not in done)
+
+
+def read_patterns_context(store: Path) -> str:
+    pdir = store / "wiki" / "patterns"
+    files = sorted(pdir.glob("*.md")) if pdir.exists() else []
+    if not files:
+        return "(no existing patterns yet)"
+    return "\n\n".join(f"### FILE: {f.name}\n{f.read_text()}" for f in files)
+
+
+# ---------------------------------------------------------------- applier
+
+def _pattern_path(store: Path, pid: str) -> Path:
+    return store / "wiki" / "patterns" / f"{pid}.md"
+
+
+def _replace_section(body: str, section: str, content: str) -> str:
+    """Replace the body under `## <section>` up to the next `## ` or EOF."""
+    pat = re.compile(rf"(^##\s+{re.escape(section)}\s*\n)(.*?)(?=^##\s|\Z)",
+                     re.DOTALL | re.MULTILINE)
+    if not pat.search(body):
+        return body.rstrip() + f"\n## {section}\n{content.rstrip()}\n"
+    return pat.sub(lambda m: m.group(1) + content.rstrip() + "\n", body)
+
+
+def _add_trace_ref(fm: str, ref: str) -> str:
+    m = re.search(r"^trace_refs:\s*\[(.*?)\]\s*$", fm, re.MULTILINE)
+    if not m:
+        return fm
+    items = [x.strip() for x in m.group(1).split(",") if x.strip()]
+    if ref not in items:
+        items.append(ref)
+    return fm[:m.start()] + f"trace_refs: [{', '.join(items)}]" + fm[m.end():]
+
+
+def apply_plan(store: Path, plan: dict, dry_run: bool) -> list[str]:
+    changes: list[str] = []
+    for op in plan.get("ops", []):
+        kind = op.get("op")
+        pid = op.get("id", "")
+        path = _pattern_path(store, pid)
+        if kind == "create_pattern":
+            if path.exists():
+                changes.append(f"skip create (exists): {pid}")
+                continue
+            changes.append(f"create pattern: {pid}")
+            if not dry_run:
+                path.write_text(op["content"].rstrip() + "\n")
+        elif kind in ("append_evidence", "replace_section", "set_status"):
+            if not path.exists():
+                changes.append(f"skip {kind} (missing): {pid}")
+                continue
+            text = path.read_text()
+            if kind == "append_evidence":
+                text = _add_trace_ref(text, op.get("trace_ref", ""))
+                text = _replace_section(
+                    text, "Evidence",
+                    _section_body(text, "Evidence").rstrip()
+                    + f"\n- {op.get('trace_ref','')}: {op['bullet']}")
+                changes.append(f"append evidence: {pid}")
+            elif kind == "replace_section":
+                text = _replace_section(text, op["section"], op["content"])
+                changes.append(f"replace {op['section']}: {pid}")
+            elif kind == "set_status":
+                text = re.sub(r"^status:.*$", f"status: {op['status']}",
+                              text, count=1, flags=re.MULTILINE)
+                changes.append(f"set status={op['status']}: {pid}")
+            if not dry_run:
+                path.write_text(text)
+        else:
+            changes.append(f"unknown op ignored: {kind}")
+    return changes
+
+
+def _section_body(text: str, section: str) -> str:
+    m = re.search(rf"^##\s+{re.escape(section)}\s*\n(.*?)(?=^##\s|\Z)",
+                  text, re.DOTALL | re.MULTILINE)
+    return m.group(1) if m else ""
+
+
+def record_iteration(store: Path, plan: dict, changes: list[str], dry_run: bool):
+    processed = [p for p in plan.get("processed", [])]
+    # evolution log (deterministic, newest-first under the marker)
+    entry = (f"\n## {date.today().isoformat()} — wiki maintenance (standalone)\n"
+             f"- traces consumed: {', '.join(processed) or 'none'}\n"
+             f"- changes: {', '.join(changes) or 'none'}\n"
+             f"- report: {plan.get('report','').strip()}\n")
+    if dry_run:
+        return
+    logf = store / "wiki" / "evolution-log.md"
+    content = logf.read_text() if logf.exists() else "# Evolution Log\n\n<!-- newest first -->\n"
+    marker = "<!-- newest first -->\n"
+    if marker in content:
+        content = content.replace(marker, marker + entry, 1)
+    else:
+        content += entry
+    logf.write_text(content)
+    # processed cursor
+    cur = store / "wiki" / ".processed.log"
+    with cur.open("a") as fh:
+        for name in processed:
+            fh.write(name + "\n")
+
+
+# ---------------------------------------------------------------- main
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description="WikiSkill standalone wiki maintainer")
+    ap.add_argument("--dry-run", action="store_true", help="print plan, apply nothing")
+    ap.add_argument("--plan-file", help="apply a pre-made JSON plan; skip the LLM")
+    ap.add_argument("--backend", default=os.environ.get("WIKISKILL_LLM", "claude"))
+    ap.add_argument("--model", default=os.environ.get("WIKISKILL_LLM_MODEL"))
+    args = ap.parse_args()
+
+    store = resolve_store()
+    (store / "wiki" / "patterns").mkdir(parents=True, exist_ok=True)
+    (store / "wiki" / ".processed.log").touch()
+    log(f"store: {store}")
+
+    if args.plan_file:
+        plan = json.loads(Path(args.plan_file).read_text())
+    else:
+        traces = unprocessed_traces(store)
+        if not traces:
+            log("wiki up to date — no new traces")
+            return 0
+        log(f"unprocessed traces: {', '.join(traces)}")
+        trace_blob = "\n\n".join(
+            f"### TRACE FILE: {t}\n{(store / 'raw' / t).read_text()}" for t in traces)
+        system = PROMPT_FILE.read_text()
+        user = (f"CURRENT WIKI PATTERNS:\n{read_patterns_context(store)}\n\n"
+                f"NEW UNPROCESSED TRACES:\n{trace_blob}\n\n"
+                f"Today is {date.today().isoformat()}. Return the JSON patch-plan.")
+        raw = call_llm(system, user, args.backend, args.model)
+        plan = parse_json(raw)
+        # ensure every trace is marked processed even if the model forgot
+        plan.setdefault("processed", [])
+        for t in traces:
+            if t not in plan["processed"]:
+                plan["processed"].append(t)
+
+    changes = apply_plan(store, plan, args.dry_run)
+    record_iteration(store, plan, changes, args.dry_run)
+
+    print(json.dumps({
+        "dry_run": args.dry_run,
+        "changes": changes,
+        "processed": plan.get("processed", []),
+        "report": plan.get("report", ""),
+    }, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

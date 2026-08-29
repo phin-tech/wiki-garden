@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# Resolve the WikiSkill store root, portably across machines.
+#
+# Resolution order (first hit wins):
+#   1. $WIKISKILL_HOME environment variable
+#   2. ~/.config/wikiskill/config  ->  a line `home=/abs/path/to/store`
+#   3. default: ~/.config/wikiskill  (auto-created; same path on every machine)
+#
+# Prints the resolved absolute path to stdout, or exits non-zero with a
+# setup hint on stderr. All WikiSkill commands/hooks/agents call this rather
+# than hardcoding a path.
+set -euo pipefail
+
+config_root() { echo "${XDG_CONFIG_HOME:-$HOME/.config}/wikiskill"; }
+
+emit() {
+  local dir="$1"
+  # normalize to absolute, verify it looks like a WikiSkill store
+  dir="${dir/#\~/$HOME}"
+  if [[ -d "$dir" ]]; then
+    ( cd "$dir" && pwd )
+    exit 0
+  fi
+  return 1
+}
+
+# 1. env var
+if [[ -n "${WIKISKILL_HOME:-}" ]]; then
+  emit "$WIKISKILL_HOME" && exit 0
+  echo "wikiskill-home: \$WIKISKILL_HOME='$WIKISKILL_HOME' is not a directory" >&2
+  exit 1
+fi
+
+# 2. config file
+cfg="$(config_root)/config"
+if [[ -f "$cfg" ]]; then
+  line="$(grep -E '^[[:space:]]*home[[:space:]]*=' "$cfg" | head -n1 || true)"
+  if [[ -n "$line" ]]; then
+    val="${line#*=}"
+    val="$(echo "$val" | sed -E 's/^[[:space:]]+|[[:space:]]+$//g')"
+    emit "$val" && exit 0
+    echo "wikiskill-home: home in $cfg ('$val') is not a directory" >&2
+    exit 1
+  fi
+fi
+
+# 3. default: ~/.config/wikiskill, auto-created with the store skeleton
+default="$(config_root)"
+if [[ ! -d "$default" ]]; then
+  mkdir -p "$default"/{raw,wiki/patterns,skills,proposals,eval/stash,eval/results}
+  # skill-impact is JSONL: one decision record per line, machine-queried by the
+  # Skill Proposer. Schema per record:
+  #   {"date","proposal","pattern","human","retro","decision","note"}
+  : > "$default/wiki/skill-impact.jsonl"
+  cat > "$default/wiki/evolution-log.md" <<'LOG'
+# Evolution Log
+
+Chronological record of every `/wikiskill-evolve` iteration: traces consumed,
+wiki patches applied, and the skill decision.
+
+<!-- newest first -->
+LOG
+fi
+( cd "$default" && pwd )
+exit 0

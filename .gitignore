@@ -1,0 +1,7 @@
+# The data store lives at ~/.config/wikiskill (see
+# skills/wikiskill/scripts/wikiskill-home), not in this repo. This repo is code-only.
+.DS_Store
+
+# python bytecode
+__pycache__/
+*.pyc
