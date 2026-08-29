@@ -1,20 +1,19 @@
 # Wiki Garden
 
-A personal coding-agent memory system: it compiles your Claude Code session
-experience into a persistent **wiki** of patterns and a set of evolving
-**skills**, so the agent gets better across sessions and stacks instead of
-relearning the same lessons every time.
+This tool is an implementation of [*WikiSkill: Compiling Agent Experience into Persistent Knowledge
+for Skill Evolution*](https://arxiv.org/abs/2608.27454) (arXiv 2608.27454). It's been expanded to try and have it build tools aka re-usable scripts. I've found many times reaching for scripts that I had used in previous sessions to manage things like AWS queries, DB inspection, Observability etc. This is hopefully something that can help do that both when the user initiates it as well as automatically..
 
-Adapted from *WikiSkill: Compiling Agent Experience into Persistent Knowledge
-for Skill Evolution* (arXiv 2608.27454). See [DESIGN.md](DESIGN.md) for the full
+Adapted from the paper linked above. See [DESIGN.md](DESIGN.md) for the full
 architecture and how it maps to the paper.
+
+**Most of what is below is LLM generated. My apologies in advance**
 
 ## Layout
 
-- **This repo** = code (commands, agents, `bin/`). Version-controlled, synced
-  across machines.
-- **`~/.config/wiki-garden/`** = your data (`raw/ wiki/ skills/ eval/`).
-  Auto-created on first use, machine-local by default.
+- **This repo**: It has the code, its version controlled etc.
+
+Your specific data is in `~/.config/wiki-garden/` where you can configure and track everything.
+
 
 ## Install
 
@@ -26,7 +25,7 @@ scripts) into `~/.claude/skills/wiki-garden/`:
 npx skills add phin-tech/wiki-garden
 ```
 
-**Dev install (this repo's author):** run the installer once per machine. It
+**Dev install (contributor):** run the installer once per machine. It
 symlinks the scripts onto your PATH and the slash command + subagent into
 `~/.claude/`, then auto-creates the store:
 
