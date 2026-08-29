@@ -84,10 +84,11 @@ def run_review(st: Path, pdir: Path, backend: str, model: str | None) -> dict:
     return out
 
 
-def record(st: Path, prop: dict, human: str, review: str, decision: str, note: str):
+def record(st: Path, prop: dict, human: str, review: str, decision: str, note: str,
+           scope: str = "global"):
     rec = {"date": date.today().isoformat(), "tool": prop.get("name", ""),
            "runtime": prop.get("runtime", ""), "human": human, "review": review,
-           "decision": decision, "note": note}
+           "decision": decision, "scope": scope, "note": note}
     ledger = st / "wiki" / "tool-impact.jsonl"
     ledger.parent.mkdir(parents=True, exist_ok=True)
     with ledger.open("a") as fh:
@@ -142,27 +143,43 @@ def cmd_accept(st: Path, args):
     if verdict == "unsafe":
         log(f"static review flagged UNSAFE: {review.get('summary','')} — accepting on human override")
 
-    dest = st / "tools" / name
+    if args.scope == "project":
+        proj = _garden.resolve_project_dir(args.project_dir)
+        dest = proj / ".claude" / "wiki-garden-tools" / name   # canonical, committable
+    else:
+        dest = st / "tools" / name                             # global library
     if dest.exists():
-        die(f"tools/{name} already exists — reject or edit instead")
+        die(f"{dest} already exists — reject or edit instead")
     update_purpose_gate(pdir, "accepted", verdict)
+    dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.move(str(pdir), str(dest))
-    record(st, prop, "accepted", verdict, "accepted", args.note or "")
+    record(st, prop, "accepted", verdict, "accepted", args.note or "", args.scope)
 
-    installed = ""
+    installed = None
     dest_exe = dest / exe.name
     if not args.no_install:
-        link = Path.home() / ".local" / "bin" / exe.name
-        link.parent.mkdir(parents=True, exist_ok=True)
-        if not link.exists():
-            os.symlink(dest_exe, link)
-            installed = str(link)
-    cat = _garden.write_tools_catalog(st)  # refresh the discoverable catalog skill
+        if args.scope == "project":
+            binp = proj / "bin" / exe.name        # committable; add repo bin/ to PATH
+            binp.parent.mkdir(parents=True, exist_ok=True)
+            if not binp.exists():
+                shutil.copy2(dest_exe, binp)
+                installed = str(binp)
+            cat = _garden.write_project_tools_catalog(proj)
+        else:
+            link = Path.home() / ".local" / "bin" / exe.name
+            link.parent.mkdir(parents=True, exist_ok=True)
+            if not link.exists():
+                os.symlink(dest_exe, link)
+                installed = str(link)
+            cat = _garden.write_tools_catalog(st)
+    else:
+        cat = _garden.write_tools_catalog(st) if args.scope == "global" else {"count": 0, "names": []}
+
     print(json.dumps({"decision": "accepted", "tool": exe.name, "review": verdict,
-                      "activated_at": str(dest), "installed_at": installed or None,
-                      "catalog_tools": cat["count"]}, indent=2))
-    log(f"accepted {exe.name}: promoted to tools/{'; on PATH: ' + installed if installed else ''}")
-    log(f"catalog refreshed — {cat['count']} tool(s): {', '.join(cat['names'])}")
+                      "scope": args.scope, "activated_at": str(dest),
+                      "installed_at": installed, "catalog_tools": cat["count"]}, indent=2))
+    log(f"accepted {exe.name} ({args.scope}): {dest}"
+        + (f"; installed -> {installed}" if installed else ""))
 
 
 def cmd_reject(st: Path, args):
@@ -190,6 +207,8 @@ def main() -> int:
         sub.add_parser(c).add_argument("name")
     acc = sub.add_parser("accept")
     acc.add_argument("name"); acc.add_argument("--note", default=""); acc.add_argument("--no-install", action="store_true")
+    acc.add_argument("--scope", choices=["global", "project"], default="global")
+    acc.add_argument("--project-dir", help="repo for project scope (default: cwd's git root)")
     rej = sub.add_parser("reject")
     rej.add_argument("name"); rej.add_argument("--note", default=""); rej.add_argument("--review", action="store_true")
     args = ap.parse_args()

@@ -49,8 +49,9 @@ When a task just taught you something worth keeping, write a high-signal trace.
    git --no-pager log --oneline -5 2>/dev/null
    ```
    From that plus the conversation, draft **task** (seeded by the `/wiki-garden`
-   argument if present), **stack** (langs/frameworks), **tools** used, and
-   **outcome** (`success|partial|fail`).
+   argument if present), **project** (the repo/basename, or `global` if not in
+   one), **stack** (langs/frameworks), **tools** used, and **outcome**
+   (`success|partial|fail`).
 3. Draft **What worked** / **What failed / friction** / **Notes**, then present
    the complete trace and have the user confirm/correct these judgment fields in
    ONE round (not a questionnaire) — your draft is a best guess.
@@ -62,6 +63,7 @@ When a task just taught you something worth keeping, write a high-signal trace.
 task_id: <date-slug>
 date: <iso8601>
 source: manual
+project: <repo-basename or global>
 stack: [<...>]
 outcome: success | partial | fail
 tools: [<...>]

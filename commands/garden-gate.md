@@ -36,12 +36,18 @@ Ask plainly: accept or reject? For a reject, get a one-line reason. Do NOT
 pressure toward either; the user is the authority. If they want edits first, they
 can tweak the staged `SKILL.md` before accepting.
 
+On accept, also ask the **scope**: **global** (applies everywhere) or **project**
+(only this repo, committable to `.claude/skills`, shareable with the team).
+Suggest `project` when the skill encodes repo/stack-specific conventions, `global`
+when it's broadly reusable.
+
 ## 4. Record the decision
 
 ```bash
-# accept: promotes proposals/<x> -> skills/<name>, installs to ~/.claude/skills,
-# runs retro-eval, and appends an accepted record to skill-impact.jsonl
+# accept globally (default): store/skills + a ~/.claude/skills symlink
 garden-gate accept <name> --note "<optional>"
+# accept for THIS project only: committed into <repo>/.claude/skills (add --project-dir if not in the repo)
+garden-gate accept <name> --scope project --note "<optional>"
 
 # reject: appends a rejected record (so it is never re-proposed) and archives it
 garden-gate reject <name> --note "<why>"

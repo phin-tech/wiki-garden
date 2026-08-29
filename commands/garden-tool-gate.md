@@ -37,12 +37,19 @@ garden-tool-gate review <name>
 The user is the authority. Make sure they've actually seen the code. If they want
 changes first, they can edit the staged executable before accepting.
 
+On accept, also ask the **scope**: **global** (installed to `~/.local/bin`,
+available everywhere) or **project** (committed into this repo's `bin/` +
+`.claude/`, shared with the team, on PATH only where the repo's `bin/` is).
+Suggest `project` for a tool tied to this repo's services; `global` for a
+generally-useful tool.
+
 ## 4. Record the decision
 
 ```bash
-# accept: runs the static review, promotes tool-proposals/<x> -> tools/<name>,
-# symlinks <prefix><name> onto ~/.local/bin (PATH), records to tool-impact.jsonl
+# accept globally (default): store/tools + ~/.local/bin symlink + global catalog
 garden-tool-gate accept <name> --note "<optional>"
+# accept for THIS project only: committed into <repo>/bin + <repo>/.claude (add --project-dir if not in the repo)
+garden-tool-gate accept <name> --scope project --note "<optional>"
 
 # reject: records the decision (never re-mined) and archives the proposal
 garden-tool-gate reject <name> --note "<why>"

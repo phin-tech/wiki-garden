@@ -94,7 +94,8 @@ def run_retro(st: Path, pdir: Path, backend: str, model: str | None) -> dict:
 
 # ---------------------------------------------------------------- ledger
 
-def record(st: Path, prop: dict, human: str, retro: str, decision: str, note: str):
+def record(st: Path, prop: dict, human: str, retro: str, decision: str, note: str,
+           scope: str = "global"):
     rec = {
         "date": date.today().isoformat(),
         "proposal": prop.get("skill_name", ""),
@@ -102,6 +103,7 @@ def record(st: Path, prop: dict, human: str, retro: str, decision: str, note: st
         "human": human,
         "retro": retro,
         "decision": decision,
+        "scope": scope,
         "note": note,
     }
     ledger = st / "wiki" / "skill-impact.jsonl"
@@ -162,25 +164,37 @@ def cmd_accept(st: Path, args):
     if retro["result"] == "fail":
         log(f"retro-eval FAILED ({retro['harmful']} harmful) — accepting on human override")
 
-    dest = st / "skills" / name
+    # global: canonical lives in the store, symlinked into ~/.claude/skills.
+    # project: canonical lives in the repo's .claude/skills (committable, and
+    # Claude Code auto-loads project skills there). Either way the ledger records
+    # it so the proposer never re-proposes.
+    if args.scope == "project":
+        proj = _garden.resolve_project_dir(args.project_dir)
+        dest = proj / ".claude" / "skills" / name
+    else:
+        dest = st / "skills" / name
     if dest.exists():
-        die(f"skills/{name} already exists — reject or edit instead")
+        die(f"{dest} already exists — reject or edit instead")
     update_purpose_gate(pdir, "accepted", retro_str)
+    dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.move(str(pdir), str(dest))
-    record(st, prop, "accepted", retro_str, "accepted", args.note or "")
+    record(st, prop, "accepted", retro_str, "accepted", args.note or "", args.scope)
 
-    installed = ""
-    if not args.no_install:
+    installed = None
+    if not args.no_install and args.scope == "global":
         link = Path.home() / ".claude" / "skills" / name
         link.parent.mkdir(parents=True, exist_ok=True)
         if not link.exists():
-            os.symlink(dest, link)
-            installed = f" and installed -> {link}"
+            os.symlink(dest, link)            # live-updating global symlink
+            installed = str(link)
+    elif args.scope == "project":
+        installed = str(dest)                 # already active in the repo's .claude
     print(json.dumps({
-        "decision": "accepted", "skill": name, "retro": retro_str,
-        "activated_at": str(dest), "installed": bool(installed),
+        "decision": "accepted", "skill": name, "retro": retro_str, "scope": args.scope,
+        "activated_at": str(dest), "installed_at": installed,
     }, indent=2))
-    log(f"accepted {name}: promoted to skills/{installed}")
+    log(f"accepted {name} ({args.scope}): {dest}"
+        + (f"; installed -> {installed}" if installed and args.scope == 'global' else ""))
 
 
 def cmd_reject(st: Path, args):
@@ -210,6 +224,8 @@ def main() -> int:
     acc = sub.add_parser("accept")
     acc.add_argument("name"); acc.add_argument("--note", default="")
     acc.add_argument("--no-install", action="store_true")
+    acc.add_argument("--scope", choices=["global", "project"], default="global")
+    acc.add_argument("--project-dir", help="repo for project scope (default: cwd's git root)")
     rej = sub.add_parser("reject")
     rej.add_argument("name"); rej.add_argument("--note", default="")
     rej.add_argument("--retro", action="store_true", help="also run retro-eval before rejecting")

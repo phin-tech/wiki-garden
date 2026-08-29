@@ -164,32 +164,41 @@ def parse_frontmatter(text: str) -> dict:
     return d
 
 
-def write_tools_catalog(store: Path) -> dict:
-    """(Re)generate the tools catalog from <store>/tools/*/TOOL.md — a
-    Runme-compatible markdown doc at <store>/tools/CATALOG.md and a discoverable
-    `wiki-garden-tools` skill at ~/.claude/skills/wiki-garden-tools/SKILL.md so
-    an agent reaches for installed tools instead of rewriting them."""
-    tdir = store / "tools"
+def resolve_project_dir(explicit: str | None = None) -> Path:
+    """The repo to scope project outputs into: --project-dir, else cwd's git
+    toplevel. Errors if neither is available."""
+    if explicit:
+        return Path(explicit).resolve()
+    try:
+        out = subprocess.run(["git", "rev-parse", "--show-toplevel"],
+                             capture_output=True, text=True, check=True)
+        return Path(out.stdout.strip())
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        die("not in a git repo — pass --project-dir <path> for project scope")
+
+
+def build_catalog(tools_root: Path, catalog_path: Path, skill_dir: Path,
+                  scope_label: str) -> dict:
+    """Scan tools_root/*/TOOL.md and (re)write catalog_path + a wiki-garden-tools
+    SKILL.md into skill_dir. Used for both the global store and a project's
+    .claude. Removes a stale skill when there are no tools."""
     tools = []
-    if tdir.exists():
-        for d in sorted(p for p in tdir.iterdir() if p.is_dir() and not p.name.startswith(".")):
+    if tools_root.exists():
+        for d in sorted(p for p in tools_root.iterdir() if p.is_dir() and not p.name.startswith(".")):
             tm = d / "TOOL.md"
             if tm.exists():
                 fm = parse_frontmatter(tm.read_text())
                 if fm.get("name"):
                     tools.append(fm)
-
-    skill_dir = Path.home() / ".claude" / "skills" / "wiki-garden-tools"
     if not tools:
-        # nothing to advertise: drop a stale catalog skill, keep an empty note
         if skill_dir.exists():
             shutil.rmtree(skill_dir, ignore_errors=True)
-        tdir.mkdir(parents=True, exist_ok=True)
-        (tdir / "CATALOG.md").write_text("# Your Wiki Garden Tools\n\n(none yet)\n")
+        catalog_path.parent.mkdir(parents=True, exist_ok=True)
+        catalog_path.write_text("# Your Wiki Garden Tools\n\n(none yet)\n")
         return {"count": 0, "names": []}
 
     names = [t["name"] for t in tools]
-    body = ["# Your Wiki Garden Tools", "",
+    body = [f"# Your Wiki Garden Tools ({scope_label})", "",
             "Reusable commands installed on your PATH. **Prefer these over writing a",
             "new one-off script.** Run `<tool> --help` for details.", ""]
     for t in tools:
@@ -200,9 +209,8 @@ def write_tools_catalog(store: Path) -> dict:
             body.append(f"Requires: {t['deps'].strip()}  ")
         body += ["", f'```sh {{"name":"{t["name"]}"}}', f"{t['name']} --help", "```", ""]
     catalog = "\n".join(body)
-
-    tdir.mkdir(parents=True, exist_ok=True)
-    (tdir / "CATALOG.md").write_text(catalog)
+    catalog_path.parent.mkdir(parents=True, exist_ok=True)
+    catalog_path.write_text(catalog)
 
     desc = ("Your installed Wiki Garden CLI tools — prefer these over rewriting a "
             f"script. Available: {', '.join(names)}. Use when a task matches one of "
@@ -211,6 +219,23 @@ def write_tools_catalog(store: Path) -> dict:
     (skill_dir / "SKILL.md").write_text(
         f"---\nname: wiki-garden-tools\ndescription: {desc}\n---\n\n{catalog}")
     return {"count": len(tools), "names": names}
+
+
+def write_tools_catalog(store: Path) -> dict:
+    """Regenerate the GLOBAL tools catalog (from <store>/tools) into the global
+    wiki-garden-tools skill."""
+    return build_catalog(store / "tools", store / "tools" / "CATALOG.md",
+                         Path.home() / ".claude" / "skills" / "wiki-garden-tools",
+                         "global")
+
+
+def write_project_tools_catalog(project_dir: Path) -> dict:
+    """Regenerate a PROJECT tools catalog from <repo>/.claude/wiki-garden-tools
+    into the repo's own wiki-garden-tools skill (committable)."""
+    root = project_dir / ".claude" / "wiki-garden-tools"
+    return build_catalog(root, root / "CATALOG.md",
+                         project_dir / ".claude" / "skills" / "wiki-garden-tools",
+                         "project")
 
 
 def parse_json(text: str) -> dict:

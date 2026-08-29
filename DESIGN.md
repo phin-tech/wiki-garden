@@ -318,6 +318,27 @@ Tool build phases: **T1 ✅** capture. **T2 ✅** gate. **T3 ✅** catalog skill
 (Runme; regenerated on accept). **T4 ✅** auto-mine (miner surfaced two AWS ECS
 ops from a trace and staged them through the generalizer; cursor idempotent).
 
+## Scope: global brain, scoped outputs
+
+One shared store accumulates traces + wiki across all projects (the value is
+cross-project learning), but each accepted output is installed at a chosen scope:
+
+- **Traces** carry a `project` field (repo basename, or `global`), so the wiki
+  can tell cross-cutting patterns from project-specific ones.
+- **Gate `--scope global|project`** (skills and tools) chooses where an accepted
+  artifact lives and activates:
+  - **global**: canonical in the store (`skills/`, `tools/`), symlinked onto
+    `~/.claude/skills` / `~/.local/bin` — available everywhere.
+  - **project**: canonical committed into the repo — a skill at
+    `<repo>/.claude/skills/<name>` (Claude Code auto-loads project skills), a tool
+    at `<repo>/.claude/wiki-garden-tools/<name>` with its executable copied to
+    `<repo>/bin/` and a project tools catalog at `<repo>/.claude/skills/`. Nothing
+    touches the global store, so project outputs stay local and are shareable with
+    the team via git.
+- Either way the decision (with `scope`) is recorded in the ledger, so the
+  proposer/miner never re-proposes it. Project scope resolves the repo from cwd's
+  git root, or `--project-dir`.
+
 ## Evolution iteration (one run of `/garden-evolve`)
 
 1. Collect `raw/` traces since last iteration.
