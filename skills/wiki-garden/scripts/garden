@@ -67,6 +67,19 @@ def init(yes: bool = typer.Option(False, "--yes", "-y", help="Accept defaults, n
     updates = {"backend": backend}
     if model:
         updates["model"] = model
+
+    # --- install targets: which agents get accepted skills ---
+    # claude-code is native (a ~/.claude/skills symlink); other agents (codex,
+    # cursor, opencode, pi, …) are installed via `npx skills` at the gate.
+    if yes:
+        targets = cfg.get("install_targets", "claude-code")
+    else:
+        targets = typer.prompt(
+            "Install accepted skills to which agents "
+            "(comma list: claude-code,codex,cursor,opencode | none)",
+            default=cfg.get("install_targets", "claude-code"))
+    updates["install_targets"] = targets.strip()
+
     if str(store) != str(_garden.config_file().parent):
         updates["home"] = str(store)
     _garden.set_config(updates)

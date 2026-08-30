@@ -120,6 +120,21 @@ PURPOSE.md + proposal.json). It **never activates** a skill — review the stage
 proposal before promoting it into `skills/`. Proposals are conservative:
 single-trace patterns are usually too weak, so `no_change` is common and fine.
 
+## Install targets: which agents get accepted skills
+
+When you accept a skill at the gate (globally), it's installed for the agents in
+`install_targets` (config, set at `garden init` — comma list, or `none`):
+
+- `claude-code` (**default**) — a native `~/.claude/skills/<name>` symlink, no
+  dependencies.
+- `codex`, `cursor`, `opencode`, and others (incl. `pi` via the shared
+  `.agents/skills` convention) — installed through the [`npx skills`](https://github.com/vercel-labs/skills)
+  CLI, which knows each agent's directory. Requires `npx`; if it's missing the
+  accept still succeeds and prints a manual `npx skills add …` hint.
+
+`SKILL.md` is identical across agents, so only the install location differs.
+`install_method=symlink|copy` controls linking vs copying.
+
 ## Put `garden` on PATH
 
 `./install.sh` symlinks the single `garden` CLI into `~/.local/bin`. To do it by

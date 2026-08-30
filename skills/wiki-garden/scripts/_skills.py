@@ -9,6 +9,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 from datetime import date, datetime
 from pathlib import Path
 
@@ -295,6 +296,74 @@ def gate_retro(name: str, backend: str, model: str | None):
     print(json.dumps(_run_retro(st, _proposal_dir(st, name), backend, model), indent=2))
 
 
+# --------------------------------------------------------------- multi-agent install
+# An accepted skill can be installed for several coding agents at once. Claude
+# Code is handled natively (a ~/.claude/skills symlink — no dependencies); every
+# other agent (codex, cursor, opencode, and pi/others via the shared
+# .agents/skills convention) is delegated to the `npx skills` CLI, which already
+# knows each agent's install directory. Targets come from the machine config:
+#   install_targets=claude-code,codex,cursor,opencode   (comma list, or "none")
+#   install_method=symlink|copy
+# `SKILL.md` is identical across agents, so only the install location differs.
+
+def _npx_skills_add(dest: Path, agents: list[str], method: str) -> bool:
+    """Install the skill at `dest` for the given agents via `npx skills add`.
+    Returns True on success, False if npx is unavailable or the command fails
+    (the caller then prints a manual-install hint)."""
+    if not shutil.which("npx"):
+        return False
+    # dest is a single skill dir (root SKILL.md); --skill '*' installs it without
+    # a "which skill?" prompt. Not shell-globbed — subprocess passes '*' literally.
+    cmd = ["npx", "-y", "skills", "add", str(dest),
+           "--global", "--agent", ",".join(agents), "--skill", "*", "--yes"]
+    if method == "copy":
+        cmd.append("--copy")
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    except (OSError, subprocess.SubprocessError) as e:
+        log(f"npx skills add failed: {e}")
+        return False
+    if r.returncode != 0:
+        log(f"npx skills add failed: {(r.stderr or r.stdout).strip()[:400]}")
+        return False
+    return True
+
+
+def _install_global(dest: Path, sk_name: str) -> str | None:
+    """Install an accepted skill for the user's configured agents. Returns a
+    human summary of where it landed, or None if nothing was installed."""
+    cfg = _garden.read_config()
+    raw = (cfg.get("install_targets") or "claude-code").strip()
+    if not raw or raw == "none":
+        log("install_targets=none — skill activated in the store but not installed")
+        return None
+    targets = [t.strip() for t in raw.split(",") if t.strip()]
+    method = (cfg.get("install_method") or "symlink").strip()
+    landed: list[str] = []
+
+    # Claude Code: native, dependency-free symlink (or copy).
+    if "claude-code" in targets:
+        link = Path.home() / ".claude" / "skills" / sk_name
+        link.parent.mkdir(parents=True, exist_ok=True)
+        if not link.exists():
+            if method == "copy":
+                shutil.copytree(dest, link)
+            else:
+                os.symlink(dest, link)
+        landed.append(str(link))
+
+    # Everything else: delegate to `npx skills`, which knows each convention.
+    others = [t for t in targets if t != "claude-code"]
+    if others:
+        if _npx_skills_add(dest, others, method):
+            landed.append(f"{', '.join(others)} (via npx skills, global)")
+        else:
+            log(f"could not install for {', '.join(others)} — `npx skills` unavailable "
+                f"or failed. Install manually:\n"
+                f"    npx skills add {dest} --global --agent {','.join(others)} --yes")
+    return "; ".join(landed) if landed else None
+
+
 def gate_accept(name: str, note: str, no_install: bool, scope: str,
                 project_dir: str | None, backend: str, model: str | None) -> dict:
     st = store_root(); log(f"store: {st}")
@@ -334,10 +403,7 @@ def gate_accept(name: str, note: str, no_install: bool, scope: str,
     _record(st, prop, "accepted", retro_str, "accepted", note or "", scope)
     installed = None
     if scope == "global" and not no_install:
-        link = Path.home() / ".claude" / "skills" / sk_name
-        link.parent.mkdir(parents=True, exist_ok=True)
-        if not link.exists():
-            os.symlink(dest, link); installed = str(link)
+        installed = _install_global(dest, sk_name)
     elif scope == "project":
         installed = str(dest)
     if scope == "global":
