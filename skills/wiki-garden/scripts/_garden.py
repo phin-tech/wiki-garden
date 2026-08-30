@@ -12,6 +12,7 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 import urllib.request
 from pathlib import Path
 
@@ -88,6 +89,18 @@ def config_get(key: str, default: str = "") -> str:
     return read_config().get(key, default)
 
 
+def set_config(updates: dict) -> Path:
+    """Merge key=value updates into the machine-local config file, preserving
+    existing keys. Returns the config path."""
+    cfg = read_config()
+    cfg.update({k: v for k, v in updates.items() if v is not None})
+    f = config_file()
+    f.parent.mkdir(parents=True, exist_ok=True)
+    body = "\n".join(f"{k}={v}" for k, v in cfg.items())
+    f.write_text(body + "\n" if body else "")
+    return f
+
+
 def tool_settings() -> tuple[str, str]:
     """(tool_prefix, tool_runtime) from config, with defaults."""
     c = read_config()
@@ -124,17 +137,79 @@ def call_llm(system: str, user: str, backend: str, model: str | None) -> str:
 def _claude_cli(system: str, user: str, model: str | None) -> str:
     """Use the local `claude` CLI in headless mode — no API key, uses the
     existing Claude Code login. System prompt is replaced (not appended) so the
-    model does only our transform; the user content is piped via stdin."""
-    cmd = ["claude", "-p", "--system-prompt", system]
+    model does only our transform; the user content is piped via stdin.
+
+    Runs with `--output-format stream-json` so the model's output can be
+    surfaced token-by-token: when WIKIGARDEN_STREAM=1 (which `garden tend` sets
+    when it spawns a producer under its pty) each text delta is echoed to stderr
+    so it flows to the tend panel live. Either way the authoritative final text
+    comes from the terminal `result` event, so callers get exactly what the old
+    plain-text mode returned. `--no-session-persistence` keeps these one-shot
+    transforms out of the user's session history."""
+    stream = os.environ.get("WIKIGARDEN_STREAM") == "1"
+    cmd = ["claude", "-p", "--system-prompt", system,
+           "--output-format", "stream-json", "--verbose",
+           "--include-partial-messages", "--no-session-persistence"]
     if model:
         cmd += ["--model", model]
     try:
-        out = subprocess.run(cmd, input=user, capture_output=True, text=True, check=True)
+        proc = subprocess.Popen(
+            cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT, text=True, bufsize=1,
+        )
     except FileNotFoundError:
         raise RuntimeError("`claude` CLI not found on PATH (needed for WIKIGARDEN_LLM=claude)")
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"claude -p failed: {e.stderr.strip() or e}")
-    return out.stdout
+
+    # Feed stdin from a thread so a large prompt can't deadlock against the
+    # model's output filling the stdout pipe before stdin is fully drained.
+    def _feed():
+        try:
+            proc.stdin.write(user)
+        except BrokenPipeError:
+            pass
+        finally:
+            proc.stdin.close()
+
+    writer = threading.Thread(target=_feed, daemon=True)
+    writer.start()
+
+    result: str | None = None
+    err_msg: str | None = None
+    parts: list[str] = []
+    for line in proc.stdout:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            ev = json.loads(line)
+        except json.JSONDecodeError:
+            continue  # non-JSON diagnostics — ignore
+        etype = ev.get("type")
+        if etype == "stream_event":
+            inner = ev.get("event") or {}
+            if inner.get("type") == "content_block_delta":
+                delta = inner.get("delta") or {}
+                if delta.get("type") == "text_delta":
+                    text = delta.get("text", "")
+                    parts.append(text)
+                    if stream and text:
+                        sys.stderr.write(text)
+                        sys.stderr.flush()
+        elif etype == "result":
+            if ev.get("is_error"):
+                err_msg = ev.get("result") or ev.get("error") or "claude reported an error"
+            elif ev.get("result") is not None:
+                result = ev.get("result")
+    proc.wait()
+    writer.join(timeout=1)
+    if stream:
+        sys.stderr.write("\n")  # terminate the streamed line
+        sys.stderr.flush()
+    if err_msg:
+        raise RuntimeError(f"claude -p failed: {err_msg}")
+    if proc.returncode != 0:
+        raise RuntimeError(f"claude -p exited with status {proc.returncode}")
+    return result if result is not None else "".join(parts)
 
 
 def _http_json(url: str, headers: dict, payload: dict) -> dict:
@@ -189,6 +264,81 @@ def parse_frontmatter(text: str) -> dict:
             k, v = ln.split(":", 1)
             d[k.strip()] = v.strip()
     return d
+
+
+# ---------------------------------------------------------------- git versioning
+# Opt-in: the store is versioned only after `garden init` runs `git init` on it.
+# ensure_skeleton never touches git, so existing stores are left alone until the
+# user chooses. When the store IS a repo, gate actions commit so every
+# accept/reject/edit has a diff and history.
+
+def is_git_store(store: Path) -> bool:
+    return (store / ".git").is_dir()
+
+
+def _git(store: Path, *args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(["git", "-C", str(store), *args],
+                          capture_output=True, text=True)
+
+
+def git_init_store(store: Path) -> bool:
+    """Initialise the store as a git repo for versioning (idempotent). Returns
+    True if the store is a repo afterwards, False if git is unavailable."""
+    if is_git_store(store):
+        return True
+    if not shutil.which("git"):
+        return False
+    if _git(store, "init", "-q").returncode != 0:
+        return False
+    gi = store / ".gitignore"
+    if not gi.exists():
+        gi.write_text("# transient retro-eval output — regenerated each run\neval/results/\n")
+    git_commit(store, "wiki-garden: initialise store")
+    return True
+
+
+def git_commit(store: Path, message: str) -> bool:
+    """Stage everything and commit, if the store is a repo with staged changes.
+    Uses an inline identity so it works even without a configured git user."""
+    if not is_git_store(store) or not shutil.which("git"):
+        return False
+    _git(store, "add", "-A")
+    if _git(store, "diff", "--cached", "--quiet").returncode == 0:
+        return False  # nothing changed
+    r = _git(store, "-c", "user.name=Wiki Garden",
+             "-c", "user.email=wiki-garden@localhost", "commit", "-q", "-m", message)
+    return r.returncode == 0
+
+
+# ---------------------------------------------------------------- frontmatter versioning
+
+def get_version(text: str) -> int:
+    """The integer `version:` from a SKILL.md/TOOL.md frontmatter, or 0 if unset."""
+    try:
+        return int(parse_frontmatter(text).get("version", ""))
+    except (TypeError, ValueError):
+        return 0
+
+
+def set_version(text: str, version: int) -> str:
+    """Return the doc with `version: <n>` set in its frontmatter (added after
+    `name:` if absent). No-op when there is no frontmatter block."""
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return text
+    close = next((i for i in range(1, len(lines)) if lines[i].strip() == "---"), None)
+    if close is None:
+        return text
+    fm = lines[1:close]
+    for i, ln in enumerate(fm):
+        if re.match(r"\s*version\s*:", ln):
+            fm[i] = f"version: {version}"
+            break
+    else:
+        idx = next((i + 1 for i, ln in enumerate(fm) if ln.startswith("name:")), len(fm))
+        fm.insert(idx, f"version: {version}")
+    result = "\n".join(["---", *fm, "---", *lines[close + 1:]])
+    return result + "\n" if text.endswith("\n") else result
 
 
 def resolve_project_dir(explicit: str | None = None) -> Path:

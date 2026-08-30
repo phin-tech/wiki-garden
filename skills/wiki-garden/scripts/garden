@@ -6,6 +6,7 @@
 """garden — Wiki Garden CLI. Compiles coding-session experience into a persistent
 wiki plus evolving skills and tools.
 
+  garden init                                   # set up store, versioning, config
   garden home
   garden maintain | propose | evolve            [--dry-run]
   garden gate     list | show | retro | accept | reject
@@ -17,6 +18,7 @@ default `claude` uses the local Claude Code login (no key).
 """
 from __future__ import annotations
 
+import shutil
 import sys
 from pathlib import Path
 from typing import Optional
@@ -43,6 +45,57 @@ PROJECT = typer.Option(None, "--project-dir", help="Repo for project scope (defa
 def home():
     """Print the resolved store path."""
     print(_garden.store_root())
+
+
+@app.command()
+def init(yes: bool = typer.Option(False, "--yes", "-y", help="Accept defaults, no prompts")):
+    """Set up the store: skeleton, config, git versioning, eval seeds, next steps."""
+    store = _garden.store_root()  # also ensures the skeleton
+    typer.secho(f"Wiki Garden store: {store}", bold=True)
+    typer.echo("  ✓ skeleton ready (raw, wiki, skills, tools, proposals, eval)")
+
+    # --- config: backend + model ---
+    cfg = _garden.read_config()
+    if yes:
+        backend = cfg.get("backend", "claude")
+        model = cfg.get("model")
+    else:
+        backend = typer.prompt("LLM backend (claude|anthropic|openai)",
+                               default=cfg.get("backend", "claude"))
+        model = typer.prompt("Model id (blank = backend default)",
+                             default=cfg.get("model", ""), show_default=False) or None
+    updates = {"backend": backend}
+    if model:
+        updates["model"] = model
+    if str(store) != str(_garden.config_file().parent):
+        updates["home"] = str(store)
+    _garden.set_config(updates)
+    typer.echo(f"  ✓ config written ({_garden.config_file()})")
+
+    # --- git versioning (opt-in) ---
+    if _garden.is_git_store(store):
+        typer.echo("  ✓ git versioning already on")
+    elif not shutil.which("git"):
+        typer.secho("  • git not found on PATH — skipping versioning", fg="yellow")
+    elif yes or typer.confirm("Version the store with git (commit on every gate action)?", default=True):
+        if _garden.git_init_store(store):
+            typer.echo("  ✓ git initialised — gate actions will commit from now on")
+        else:
+            typer.secho("  • could not initialise git", fg="yellow")
+
+    # --- seed eval stash ---
+    stash = store / "eval" / "stash"
+    have = len(list(stash.glob("*.md"))) if stash.exists() else 0
+    if have:
+        typer.echo(f"  ✓ eval stash has {have} past-task case(s)")
+    else:
+        typer.secho("  • eval/stash is empty — retro-eval will be skipped at the gate.", fg="yellow")
+        typer.echo(f"    Drop past-task markdown files into {stash} to enable retro-eval.")
+
+    typer.secho("\nNext:", bold=True)
+    typer.echo("  1. Capture sessions:  /wiki-garden  (or `garden` maintain on raw traces)")
+    typer.echo("  2. Evolve:            garden evolve      # maintain wiki + stage a skill")
+    typer.echo("  3. Review the gate:   garden tend        # browser UI, or `garden gate list`")
 
 
 @app.command()

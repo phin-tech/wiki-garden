@@ -200,25 +200,93 @@ body {
 
 .topbar__actions {
   display: flex;
+  align-items: center;
   gap: 0.4rem;
   flex: none;
 }
 
+.topbar__gap {
+  width: 1px;
+  align-self: stretch;
+  margin: 0.15rem 0.35rem;
+  background: var(--border-muted, rgba(0, 0, 0, 0.12));
+}
+
+.topbar__runs {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.topbar__runs-n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.05rem;
+  height: 1.05rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: var(--bg-inset, rgba(0, 0, 0, 0.08));
+  color: var(--text-secondary, #666);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+}
+.topbar__runs-live {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--accent-amber, #f5a623);
+  animation: topbar-runs-pulse 1s ease-in-out infinite;
+}
+@keyframes topbar-runs-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* Per-section producer action bar (Maintain on Patterns, Mine on Tools, …). */
+.wg-actions {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--border-muted, rgba(0, 0, 0, 0.08));
+}
+
+/* Result/log panel for a triggered producer run. */
 .content {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  background: var(--bg-primary, #f5f6f8);
+  /* One surface for every section — the lighter tone the flush views (Proposals,
+   * Tools) already used. Cards/tables carry their own borders for separation. */
+  background: var(--bg-surface, #fff);
 }
 
 /* Proposals/Tools own their internal split-pane scroll; give them the full box. */
 .content--flush {
   overflow: hidden;
-  background: var(--bg-surface, #fff);
 }
 
 .content__pad {
   padding: 1.1rem 1.25rem 2.5rem;
+}
+
+/* The padded sections (Skills, Patterns, Traces, Evolution) drop a plain table
+ * onto the light surface. Frame it as a bordered card so it reads as contained —
+ * the flush split-views (Proposals, Tools) get that frame from their panes. */
+.content__pad .kit-table-wrapper {
+  border: 1px solid var(--border-muted, rgba(0, 0, 0, 0.1));
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg-surface, #fff);
+}
+
+/* No divider under the last row — it would double up with the card border. */
+.content__pad .kit-table-wrapper tbody tr:last-child td {
+  border-bottom: none;
 }
 
 /* clickable table rows */

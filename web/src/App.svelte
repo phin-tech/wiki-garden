@@ -1,14 +1,23 @@
 <script lang="ts">
   import Button from "@kit-ui/components/Button.svelte";
   import Notice from "@kit-ui/Notice.svelte";
-  import { getSnapshot, type Snapshot } from "./api";
+  import {
+    cancelRun,
+    getSnapshot,
+    runCommandStream,
+    type RunCommand,
+    type RunEntry,
+    type Snapshot,
+  } from "./api";
+  import RunPanel from "./components/RunPanel.svelte";
   import Proposals from "./views/Proposals.svelte";
   import Tools from "./views/Tools.svelte";
+  import Skills from "./views/Skills.svelte";
   import Patterns from "./views/Patterns.svelte";
   import Traces from "./views/Traces.svelte";
   import Evolution from "./views/Evolution.svelte";
 
-  type TabId = "proposals" | "tools" | "patterns" | "traces" | "evolution";
+  type TabId = "proposals" | "tools" | "skills" | "patterns" | "traces" | "evolution";
 
   let snap = $state<Snapshot | null>(null);
   let error = $state<string | null>(null);
@@ -19,12 +28,76 @@
   const tabs: { id: TabId; label: string; sub: string; glyph: string }[] = [
     { id: "proposals", label: "Proposals", sub: "Staged skills awaiting the gate", glyph: "◆" },
     { id: "tools", label: "Tools", sub: "Staged CLI tools awaiting review", glyph: "⌘" },
+    { id: "skills", label: "Skills", sub: "Activated skills in force", glyph: "✦" },
     { id: "patterns", label: "Patterns", sub: "The compiled wiki", glyph: "❖" },
     { id: "traces", label: "Traces", sub: "Raw captured sessions", glyph: "≣" },
     { id: "evolution", label: "Evolution", sub: "Impact ledger + log", glyph: "◵" },
   ];
   const active = $derived(tabs.find((t) => t.id === tab)!);
   const flush = $derived(tab === "proposals" || tab === "tools");
+
+  // Producer commands are triggered from the tab they feed (see each view);
+  // Evolve — maintain + propose in one — stays global in the top bar. Each run
+  // is tracked as its own entry in the floating panel (a collapsible history),
+  // so output from every command streams in one place and older runs stay
+  // around to expand. The server serialises producers, so only one runs at once.
+  let running = $state<RunCommand | null>(null);
+  let panelOpen = $state(false);
+  let runs = $state<RunEntry[]>([]);
+  let seq = 0;
+  let stream: EventSource | null = null;
+
+  function run(cmd: RunCommand) {
+    if (running) return;
+    running = cmd;
+    panelOpen = true;
+    for (const r of runs) r.expanded = false; // collapse the previous runs
+    runs = [
+      { id: ++seq, cmd, log: "", status: "running", code: 0, startedAt: Date.now(), expanded: true },
+      ...runs,
+    ];
+    const live = runs[0]; // the reactive proxy element — mutate through it
+    stream = runCommandStream(cmd, {
+      onLog: (chunk) => (live.log += chunk),
+      onBusy: (msg) => {
+        live.status = "busy";
+        live.log += msg + "\n";
+      },
+      onDone: async (code) => {
+        live.code = code;
+        // A `busy` reply lands as done with code -1; keep the busy status.
+        if (live.status !== "busy") live.status = code === 0 ? "done" : "error";
+        running = null;
+        stream = null;
+        if (code === 0) await load();
+      },
+      onError: (msg) => {
+        if (live.status === "running") {
+          live.status = "error";
+          live.log += `\n[${msg}]\n`;
+        }
+        running = null;
+        stream = null;
+      },
+    });
+  }
+
+  function toggleEntry(id: number) {
+    const r = runs.find((x) => x.id === id);
+    if (r) r.expanded = !r.expanded;
+  }
+
+  function cancelActive() {
+    void cancelRun(); // the stream ends with a done/error event that resets state
+  }
+
+  function clearFinished() {
+    runs = runs.filter((r) => r.status === "running");
+  }
+
+  function togglePanel() {
+    panelOpen = !panelOpen;
+  }
 
   async function load() {
     try {
@@ -87,8 +160,32 @@
         <span class="topbar__sub">{active.sub}</span>
       </div>
       <div class="topbar__actions">
+        <Button
+          size="sm"
+          surface="solid"
+          tone="workflow"
+          disabled={running !== null}
+          title="Compile new traces, then stage one skill proposal"
+          onclick={() => run("evolve")}
+        >
+          {running === "evolve" ? "⟳ Evolve…" : "⟳ Evolve"}
+        </Button>
+        <span class="topbar__gap"></span>
+        <Button
+          size="sm"
+          surface={panelOpen ? "soft" : "outline"}
+          title={panelOpen ? "Hide the run panel" : "Show the run panel"}
+          onclick={togglePanel}
+        >
+          <span class="topbar__runs">
+            ▤ Runs{#if runs.length}<span class="topbar__runs-n">{runs.length}</span>{/if}{#if running}<span
+                class="topbar__runs-live"
+                aria-label="a command is running"
+              ></span>{/if}
+          </span>
+        </Button>
         <Button size="sm" surface="soft" onclick={toggleTheme}>{dark ? "☀︎ Light" : "☾ Dark"}</Button>
-        <Button size="sm" surface="outline" onclick={load}>⟳ Refresh</Button>
+        <Button size="sm" surface="outline" disabled={running !== null} onclick={load}>⟳ Refresh</Button>
       </div>
     </header>
 
@@ -99,11 +196,13 @@
         <div class="content__pad"><p class="wg-muted">Loading the garden…</p></div>
       {:else if snap}
         {#if tab === "proposals"}
-          <Proposals proposals={snap.proposals} onDone={load} />
+          <Proposals proposals={snap.proposals} onDone={load} onRun={run} {running} />
         {:else if tab === "tools"}
-          <Tools tools={snap.tools} onDone={load} />
+          <Tools tools={snap.tools} onDone={load} onRun={run} {running} />
+        {:else if tab === "skills"}
+          <div class="content__pad"><Skills skills={snap.skills} /></div>
         {:else if tab === "patterns"}
-          <div class="content__pad"><Patterns patterns={snap.patterns} /></div>
+          <div class="content__pad"><Patterns patterns={snap.patterns} onRun={run} {running} /></div>
         {:else if tab === "traces"}
           <div class="content__pad"><Traces traces={snap.traces} /></div>
         {:else if tab === "evolution"}
@@ -112,4 +211,13 @@
       {/if}
     </section>
   </main>
+
+  <RunPanel
+    open={panelOpen}
+    {runs}
+    onToggleEntry={toggleEntry}
+    onCancel={cancelActive}
+    onClose={togglePanel}
+    onClear={clearFinished}
+  />
 </div>

@@ -6,9 +6,20 @@
   import Markdown from "../components/Markdown.svelte";
   import GateActions from "../components/GateActions.svelte";
   import SplitView from "../components/SplitView.svelte";
-  import type { Tool } from "../api";
+  import RunButton from "../components/RunButton.svelte";
+  import type { Tool, RunCommand } from "../api";
 
-  let { tools, onDone }: { tools: Tool[]; onDone: () => void } = $props();
+  let {
+    tools,
+    onDone,
+    onRun,
+    running,
+  }: {
+    tools: Tool[];
+    onDone: () => void;
+    onRun: (cmd: RunCommand) => void;
+    running: RunCommand | null;
+  } = $props();
 
   let selectedId = $state<string | null>(null);
   const selected = $derived(tools.find((t) => t.id === selectedId) ?? null);
@@ -17,6 +28,23 @@
     if (selectedId && !tools.some((t) => t.id === selectedId)) selectedId = null;
   });
 </script>
+
+<div class="wg-actions">
+  <RunButton
+    cmd="tool-mine"
+    label="Mine tools"
+    title="Mine traces for recurring commands, stage them as tools"
+    {onRun}
+    {running}
+  />
+  <RunButton
+    cmd="tool-catalog"
+    label="Catalog"
+    title="Regenerate the wiki-garden-tools catalog skill"
+    {onRun}
+    {running}
+  />
+</div>
 
 {#if tools.length === 0}
   <EmptyState
@@ -73,7 +101,7 @@
           </details>
           <details>
             <summary>TOOL.md</summary>
-            <Markdown source={selected.tool_md} />
+            <Markdown source={selected.tool_md} frontmatter="preview" />
           </details>
         </div>
       {/if}

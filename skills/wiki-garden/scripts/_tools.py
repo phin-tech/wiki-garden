@@ -234,6 +234,8 @@ def tool_gate_accept(name: str, note: str, no_install: bool, scope: str,
             cat = _garden.write_tools_catalog(st)
     else:
         cat = _garden.write_tools_catalog(st) if scope == "global" else {"count": 0}
+    if scope == "global":
+        _garden.git_commit(st, f"tool gate: accept {tname}")
     out = {"decision": "accepted", "tool": exe.name, "review": verdict, "scope": scope,
            "activated_at": str(dest), "installed_at": installed, "catalog_tools": cat["count"]}
     print(json.dumps(out, indent=2))
@@ -250,6 +252,7 @@ def tool_gate_reject(name: str, note: str, review: bool, backend: str, model: st
     _tool_record(st, prop, "rejected", r.get("verdict", "not-run"), "rejected", note)
     arch = st / "tool-proposals" / ".rejected"; arch.mkdir(parents=True, exist_ok=True)
     shutil.move(str(pdir), str(arch / pdir.name))
+    _garden.git_commit(st, f"tool gate: reject {prop.get('name', name)}")
     out = {"decision": "rejected", "tool": prop.get("name"), "note": note, "archived": str(arch / pdir.name)}
     print(json.dumps(out, indent=2))
     log(f"rejected {prop.get('name')} — recorded in tool-impact.jsonl")

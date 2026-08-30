@@ -155,8 +155,24 @@ def _propose_context(store: Path) -> str:
             skills.append(f"- {d.name}:\n{sm.read_text()[:400] if sm.exists() else '(no SKILL.md)'}")
     ledger = store / "wiki" / "skill-impact.jsonl"
     ledger_ctx = (ledger.read_text().strip() if ledger.exists() else "") or "(no prior decisions)"
+    props = store / "proposals"
+    pending = []
+    if props.exists():
+        for d in sorted(p for p in props.iterdir() if p.is_dir() and not p.name.startswith(".")):
+            pj = d / "proposal.json"
+            if pj.exists():
+                try:
+                    pd = json.loads(pj.read_text())
+                    pending.append(f"- {pd.get('skill_name', d.name)} (pattern: {pd.get('pattern', '?')})")
+                except (json.JSONDecodeError, OSError):
+                    pending.append(f"- {d.name}")
+            else:
+                pending.append(f"- {d.name}")
     return (f"CURRENT WIKI PATTERNS:\n{patterns or '(no patterns yet)'}\n\n"
             f"EXISTING SKILLS:\n{chr(10).join(skills) or '(no skills yet)'}\n\n"
+            f"PENDING PROPOSALS (un-gated — do NOT restage a duplicate for the same "
+            f"skill_name/pattern; return no_change or edit an activated skill instead):\n"
+            f"{chr(10).join(pending) or '(none pending)'}\n\n"
             f"SKILL-IMPACT LEDGER (past decisions — do not re-propose rejected):\n{ledger_ctx}")
 
 
@@ -292,11 +308,29 @@ def gate_accept(name: str, note: str, no_install: bool, scope: str,
         dest = _garden.resolve_project_dir(project_dir) / ".claude" / "skills" / sk_name
     else:
         dest = st / "skills" / sk_name
-    if dest.exists():
-        die(f"{dest} already exists — reject or edit instead")
+    is_edit = prop.get("kind") == "edit_skill"
     _set_gate(pdir, "accepted", retro_str)
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    shutil.move(str(pdir), str(dest))
+    new_md = (pdir / "SKILL.md").read_text()
+    if dest.exists():
+        if not is_edit:
+            die(f"{dest} already exists — reject, or propose an edit_skill instead")
+        # Edit: archive the current version, bump, overwrite in place.
+        old_md = (dest / "SKILL.md").read_text()
+        version = (_garden.get_version(old_md) or 1) + 1
+        hist = dest / ".history"; hist.mkdir(exist_ok=True)
+        stamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+        (hist / f"v{version - 1}_{stamp}.md").write_text(old_md)
+        (dest / "SKILL.md").write_text(_garden.set_version(new_md, version))
+        (dest / "PURPOSE.md").write_text((pdir / "PURPOSE.md").read_text())
+        (dest / "proposal.json").write_text((pdir / "proposal.json").read_text())
+        accepted_arch = st / "proposals" / ".accepted"; accepted_arch.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(pdir), str(accepted_arch / pdir.name))
+    else:
+        # New skill: stamp version 1 (if unset) and move the proposal into place.
+        version = _garden.get_version(new_md) or 1
+        (pdir / "SKILL.md").write_text(_garden.set_version(new_md, version))
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(pdir), str(dest))
     _record(st, prop, "accepted", retro_str, "accepted", note or "", scope)
     installed = None
     if scope == "global" and not no_install:
@@ -306,10 +340,13 @@ def gate_accept(name: str, note: str, no_install: bool, scope: str,
             os.symlink(dest, link); installed = str(link)
     elif scope == "project":
         installed = str(dest)
-    out = {"decision": "accepted", "skill": sk_name, "retro": retro_str,
-           "scope": scope, "activated_at": str(dest), "installed_at": installed}
+    if scope == "global":
+        _garden.git_commit(st, f"gate: accept {sk_name} v{version}"
+                               + (" (edit)" if is_edit else ""))
+    out = {"decision": "accepted", "skill": sk_name, "version": version, "edit": is_edit,
+           "retro": retro_str, "scope": scope, "activated_at": str(dest), "installed_at": installed}
     print(json.dumps(out, indent=2))
-    log(f"accepted {sk_name} ({scope}): {dest}")
+    log(f"accepted {sk_name} v{version} ({scope}): {dest}")
     return out
 
 
@@ -322,6 +359,7 @@ def gate_reject(name: str, note: str, retro: bool, backend: str, model: str | No
     _record(st, prop, "rejected", r["result"], "rejected", note)
     arch = st / "proposals" / ".rejected"; arch.mkdir(parents=True, exist_ok=True)
     shutil.move(str(pdir), str(arch / pdir.name))
+    _garden.git_commit(st, f"gate: reject {prop.get('skill_name', name)}")
     out = {"decision": "rejected", "skill": prop.get("skill_name"), "note": note,
            "archived": str(arch / pdir.name)}
     print(json.dumps(out, indent=2))

@@ -1,7 +1,16 @@
 <script lang="ts">
-  import { renderMarkdown } from "../markdown";
-  let { source = "" }: { source?: string } = $props();
-  const html = $derived(renderMarkdown(source));
+  import { renderMarkdown, splitFrontmatter } from "../markdown";
+  // frontmatter: "preview" shows it as a YAML code block; "hide" strips it.
+  let { source = "", frontmatter = "raw" }: {
+    source?: string;
+    frontmatter?: "raw" | "preview" | "hide";
+  } = $props();
+  const html = $derived.by(() => {
+    if (frontmatter === "raw") return renderMarkdown(source);
+    const { fm, body } = splitFrontmatter(source);
+    if (frontmatter === "hide" || !fm) return renderMarkdown(body);
+    return renderMarkdown("```yaml\n" + fm + "\n```\n\n" + body);
+  });
 </script>
 
 <!-- eslint-disable-next-line svelte/no-at-html-tags — sanitized in renderMarkdown -->

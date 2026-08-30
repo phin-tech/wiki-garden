@@ -4,11 +4,26 @@
   import EmptyState from "@kit-ui/components/EmptyState.svelte";
   import DetailDrawer from "@kit-ui/components/DetailDrawer.svelte";
   import Markdown from "../components/Markdown.svelte";
-  import type { Pattern } from "../api";
+  import RunButton from "../components/RunButton.svelte";
+  import type { Pattern, RunCommand } from "../api";
 
-  let { patterns }: { patterns: Pattern[] } = $props();
+  let {
+    patterns,
+    onRun,
+    running,
+  }: { patterns: Pattern[]; onRun: (cmd: RunCommand) => void; running: RunCommand | null } = $props();
   let open = $state<Pattern | null>(null);
 </script>
+
+<div class="wg-actions">
+  <RunButton
+    cmd="maintain"
+    label="Maintain"
+    title="Compile new traces into wiki patterns"
+    {onRun}
+    {running}
+  />
+</div>
 
 {#if patterns.length === 0}
   <EmptyState

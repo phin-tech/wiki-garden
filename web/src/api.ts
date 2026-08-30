@@ -8,6 +8,7 @@ export interface Gate {
 
 export interface Proposal {
   id: string;
+  status: "current" | "rejected";
   skill_name: string;
   pattern: string;
   rationale: string;
@@ -48,6 +49,9 @@ export interface Skill {
   id: string;
   name: string;
   description: string;
+  version: number;
+  revisions: number;
+  body: string;
   activated_at: string;
 }
 
@@ -75,7 +79,84 @@ export interface GateResult {
   ok: boolean;
   log?: string;
   error?: string;
+  busy?: boolean;
   result?: Record<string, unknown>;
+}
+
+/** LLM-backed producer commands the UI can trigger (`garden <command>`). */
+export type RunCommand = "maintain" | "propose" | "evolve" | "tool-mine" | "tool-catalog";
+
+export type RunState = "running" | "done" | "error" | "busy";
+
+/** One tracked execution, shown as a collapsible entry in the run panel. */
+export interface RunEntry {
+  id: number;
+  cmd: RunCommand;
+  log: string;
+  status: RunState;
+  code: number;
+  startedAt: number; // epoch ms
+  expanded: boolean;
+}
+
+/** Run a producer command server-side, returning its captured log (buffered). */
+export async function runCommand(
+  command: RunCommand,
+  body: Record<string, unknown> = {},
+): Promise<GateResult> {
+  const r = await fetch(`/api/run/${command}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return r.json();
+}
+
+export interface RunStreamHandlers {
+  onStart?: () => void;
+  onLog?: (chunk: string) => void;
+  onBusy?: (message: string) => void;
+  onDone?: (code: number) => void;
+  onError?: (message: string) => void;
+}
+
+/**
+ * Stream a producer command's live output over SSE (`/api/run/<cmd>/stream`).
+ * The server runs `garden <cmd>` under a pty and pushes output as it arrives.
+ * Returns the EventSource so the caller can `.close()` to detach; call
+ * `cancelRun()` to actually kill the underlying process.
+ */
+export function runCommandStream(command: RunCommand, h: RunStreamHandlers): EventSource {
+  const es = new EventSource(`/api/run/${command}/stream`);
+  let finished = false;
+  const parse = (e: Event) => {
+    try {
+      return JSON.parse((e as MessageEvent).data) as Record<string, unknown>;
+    } catch {
+      return {};
+    }
+  };
+  es.addEventListener("start", () => h.onStart?.());
+  es.addEventListener("log", (e) => h.onLog?.(String(parse(e).chunk ?? "")));
+  es.addEventListener("busy", (e) => h.onBusy?.(String(parse(e).error ?? "busy")));
+  es.addEventListener("done", (e) => {
+    finished = true;
+    es.close();
+    h.onDone?.(Number(parse(e).code ?? 0));
+  });
+  es.onerror = () => {
+    if (finished) return; // normal close after `done`
+    finished = true;
+    es.close();
+    h.onError?.("connection to the tend server was lost");
+  };
+  return es;
+}
+
+/** Kill the currently streaming producer, if any. */
+export async function cancelRun(): Promise<GateResult> {
+  const r = await fetch("/api/run/cancel", { method: "POST" });
+  return r.json();
 }
 
 export async function getSnapshot(): Promise<Snapshot> {
