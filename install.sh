@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # Dev install of Wiki Garden for the author's own machine. Symlinks everything so
 # `git pull` here auto-updates installed copies. (End users can instead install
-# just the skill via:  npx skills add phin-tech/wiki-garden)
+# the skill via `npx skills add phin-tech/wiki-garden`, or a standalone `garden`
+# command via `uv tool install "git+…#subdirectory=skills/wiki-garden"` — see
+# README.md.)
 #
-#   skills/wiki-garden/scripts/*  -> ~/.local/bin/            (on PATH)
-#   commands/*.md               -> ~/.claude/commands/       (slash commands)
-#   agents/*.md                 -> ~/.claude/agents/         (subagents)
-#   skills/wiki-garden            -> ~/.claude/skills/wiki-garden (skill discovery)
+#   skills/wiki-garden/scripts/garden -> ~/.local/bin/            (on PATH; uv launcher)
+#   commands/*.md                     -> ~/.claude/commands/      (slash commands)
+#   agents/*.md                       -> ~/.claude/agents/        (subagents)
+#   skills/wiki-garden                -> ~/.claude/skills/wiki-garden (skill discovery)
 set -euo pipefail
 
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

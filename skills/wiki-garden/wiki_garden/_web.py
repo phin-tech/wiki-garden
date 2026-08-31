@@ -34,12 +34,12 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-import _garden
-import _skills
-import _tools
+from . import _garden
+from . import _skills
+from . import _tools
 
 HERE = Path(__file__).resolve().parent
-DIST = HERE.parent / "web-dist"          # compiled front-end, shipped in the skill
+DIST = HERE / "web-dist"                 # compiled front-end, shipped in the package
 META = {"proposal.json", "PURPOSE.md", "SKILL.md", "TOOL.md"}
 
 

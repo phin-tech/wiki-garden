@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "description": "Local web UI for `garden tend`. Built with Vite + Svelte 5, consuming vendored @kenn-io/kit-ui. Build output is committed to skills/wiki-garden/web-dist so the skill ships without a JS toolchain.",
+  "description": "Local web UI for `garden tend`. Built with Vite + Svelte 5, consuming vendored @kenn-io/kit-ui. Build output is committed to skills/wiki-garden/wiki_garden/web-dist so the skill ships without a JS toolchain.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

@@ -13,8 +13,8 @@ import sys
 from datetime import date, datetime
 from pathlib import Path
 
-import _garden
-from _garden import call_llm, die, log, parse_json, prompt, store_root, tool_settings
+from . import _garden
+from ._garden import call_llm, die, log, parse_json, prompt, store_root, tool_settings
 
 META = {"TOOL.md", "PURPOSE.md", "proposal.json"}
 

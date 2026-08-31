@@ -8,7 +8,7 @@ copy of [`@kenn-io/kit-ui`](https://github.com/kenn-io/kit-ui) (Apache-2.0) unde
 
 End users install Wiki Garden as a Claude Code skill (`npx skills add …`), which
 copies **only** `skills/wiki-garden/`. So the compiled UI is built **into**
-`skills/wiki-garden/web-dist/` and committed — `garden tend` serves it with a
+`skills/wiki-garden/wiki_garden/web-dist/` and committed — `garden tend` serves it with a
 stdlib HTTP server, and users need no JS toolchain. This `web/` tree is for
 contributors only and is not shipped.
 
@@ -17,7 +17,7 @@ contributors only and is not shipped.
 ```sh
 cd web
 bun install
-bun run build        # -> ../skills/wiki-garden/web-dist   (commit the result)
+bun run build        # -> ../skills/wiki-garden/wiki_garden/web-dist   (commit the result)
 ```
 
 `base` is `./` (relative) because the server mounts the assets at an arbitrary
@@ -33,7 +33,7 @@ cd web && bun run dev          # Vite dev server; proxies /api -> 127.0.0.1:8787
 
 ## Backend
 
-The server + JSON API live in `skills/wiki-garden/scripts/_web.py` (stdlib only),
+The server + JSON API live in `skills/wiki-garden/wiki_garden/_web.py` (stdlib only),
 wired as the `garden tend` subcommand. Read endpoints parse the store directly;
 `accept`/`reject` call the in-process gate functions in `_skills` / `_tools`, so
 gating logic stays single-sourced with the CLI.

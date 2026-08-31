@@ -37,13 +37,18 @@ wiki-garden/
   skills/
     wiki-garden/               # the shippable skill (skills.sh discovers SKILL.md)
       SKILL.md               # self-sufficient workflow: capture + consolidate
+      pyproject.toml      # packaging: `uv tool install` -> `garden` on PATH
       scripts/
-        garden            # the single Typer CLI (PEP 723 / uv); ONLY file on PATH
+        garden            # thin uv launcher (PEP 723); the zero-install entry point
+      wiki_garden/        # the installable Python package
+        cli.py            # the single Typer CLI (`garden` entry point)
         _garden.py        # shared: store resolution, config, LLM backend, catalog
         _skills.py        # maintain / propose / gate (skills + wiki pipeline)
         _tools.py         # tool capture / gate / mine (tools layer)
-      prompts/
-        wiki-maintainer.md   skill-proposer.md   retro-eval.md
+        _web.py           # `garden tend` server + JSON API (stdlib)
+        prompts/
+          wiki-maintainer.md   skill-proposer.md   retro-eval.md
+        web-dist/         # compiled Svelte UI (committed; served by `garden tend`)
         tool-generalizer.md  tool-review.md      tool-miner.md
   agents/                    # Claude Code subagents (wiki-maintainer, skill-proposer)
   commands/                  # /garden-evolve (author convenience; capture lives in the skill)
@@ -210,7 +215,7 @@ runs two ways over the **same model-agnostic prompt**:
 - **Standalone (any LLM)**: deterministic runners (`garden maintain`,
   `garden propose`) that do NOT need a tool-using agent. The LLM is asked for
   a **JSON plan**; plain code validates and applies/stages it. Shared backend +
-  store helpers live in `scripts/_garden.py`.
+  store helpers live in `wiki_garden/_garden.py`.
 
 ### Patch-plan contract
 
@@ -358,7 +363,7 @@ cross-project learning), but each accepted output is installed at a chosen scope
   all op types via `--plan-file`. ◻ live LLM smoke-test (needs an API key/local
   model).
 - **Phase 3** — Skill Proposer. ✅ Claude Code subagent + standalone
-  `garden propose` (PEP 723/uv, shared `_garden.py`); stages atomic, traceable
+  `garden propose` (shared `wiki_garden/_garden.py`); stages atomic, traceable
   proposals to `proposals/` without activating; stager validated via `--plan-file`.
   ✅ live LLM smoke-test via `claude` backend (no key).
 - **Phase 4** — gating. ✅ `garden gate` (retro-eval LLM judge over

@@ -1,0 +1,29 @@
+# Packaging for the `garden` CLI so it installs as a first-class command with uv:
+#
+#   uv tool install "git+https://github.com/phin-tech/wiki-garden.git#subdirectory=skills/wiki-garden"
+#
+# This same directory is ALSO a Claude Code skill (see SKILL.md). The two install
+# paths converge: skill users can run the bundled `scripts/garden` via `uv run`
+# with zero PATH setup, and the skill prefers a real `garden` on PATH when present.
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "wiki-garden"
+version = "0.1.0"
+description = "Compile coding-session experience into a persistent wiki plus evolving skills and tools."
+readme = "SKILL.md"
+requires-python = ">=3.11"
+dependencies = ["typer>=0.12"]
+
+[project.urls]
+Homepage = "https://github.com/phin-tech/wiki-garden"
+Source = "https://github.com/phin-tech/wiki-garden"
+
+[project.scripts]
+garden = "wiki_garden.cli:main"
+
+[tool.hatch.build.targets.wheel]
+# Ship the package plus its data (prompts/, web-dist/) that live inside it.
+packages = ["wiki_garden"]

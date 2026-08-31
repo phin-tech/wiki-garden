@@ -1,4 +1,4 @@
-// Typed client for the `garden tend` JSON API (skills/wiki-garden/scripts/_web.py).
+// Typed client for the `garden tend` JSON API (skills/wiki-garden/wiki_garden/_web.py).
 
 export interface Gate {
   human?: string;

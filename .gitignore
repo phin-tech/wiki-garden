@@ -1,7 +1,12 @@
 # The data store lives at ~/.config/wiki-garden (see
-# skills/wiki-garden/scripts/garden-home), not in this repo. This repo is code-only.
+# skills/wiki-garden/wiki_garden/_garden.py store resolution), not in this repo.
+# This repo is code-only.
 .DS_Store
 
 # python bytecode
 __pycache__/
 *.pyc
+
+# uv byproducts from running the packaged CLI in-tree (skills/wiki-garden is a uv project)
+.venv/
+uv.lock

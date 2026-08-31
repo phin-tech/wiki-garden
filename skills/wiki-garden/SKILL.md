@@ -12,9 +12,21 @@ into a persistent **wiki** of patterns and (later) evolving **skills**, so the
 agent stops relearning the same lessons. Adapted from *WikiSkill* (arXiv
 2608.27454).
 
-Runtime lives beside this file: a single `garden` CLI in `scripts/` (plus its
-`_*.py` modules) and the model-agnostic `prompts/`. On PATH after `./install.sh`,
-so you can call `garden <subcommand>` from anywhere.
+Runtime lives beside this file as the `wiki_garden` Python package (the CLI, its
+`_*.py` modules, the model-agnostic `prompts/`, and the compiled `web-dist/`),
+plus a `scripts/garden` launcher. **Resolve the CLI in this order:**
+
+1. If `garden` is on PATH — the user ran `uv tool install` (see *Install* below) —
+   just call `garden <subcommand>`.
+2. Otherwise run the bundled launcher directly. It's a `uv` script: executing it
+   pulls `typer` on its own, so no install or PATH setup is needed:
+
+   ```bash
+   <skill-dir>/scripts/garden home      # <skill-dir> = the directory holding this SKILL.md
+   ```
+
+Throughout this doc `garden <cmd>` means *the resolved CLI* — substitute
+`<skill-dir>/scripts/garden <cmd>` whenever it isn't on PATH.
 
 ## Invocation
 
@@ -32,7 +44,7 @@ All data lives in a store resolved by `garden home` (first hit wins):
 default `~/.config/wiki-garden` (auto-created). Get it with:
 
 ```bash
-STORE="$(garden home)"    # or just `garden home` if on PATH
+STORE="$(garden home)"    # or <skill-dir>/scripts/garden home if not on PATH
 ```
 
 Layout: `raw/` (traces) · `wiki/patterns/` + `wiki/evolution-log.md` +
@@ -135,14 +147,22 @@ When you accept a skill at the gate (globally), it's installed for the agents in
 `SKILL.md` is identical across agents, so only the install location differs.
 `install_method=symlink|copy` controls linking vs copying.
 
-## Put `garden` on PATH
+## Install
 
-`./install.sh` symlinks the single `garden` CLI into `~/.local/bin`. To do it by
-hand from this skill's directory:
+You don't have to install anything to use the CLI — the bundled
+`scripts/garden` launcher runs via `uv` with zero setup (resolution step 2
+above). To get a first-class `garden` command on PATH instead:
 
 ```bash
-ln -sf "$PWD/scripts/garden" ~/.local/bin/garden
+# From anywhere — installs `garden` as an isolated uv tool (no clone needed):
+uv tool install "git+https://github.com/phin-tech/wiki-garden.git#subdirectory=skills/wiki-garden"
+
+# Or, from a checkout of this repo, the dev installer (symlinks so `git pull` updates it):
+./install.sh
 ```
+
+Both leave `garden` on PATH, after which resolution step 1 applies. A plain
+`ln -sf "$PWD/scripts/garden" ~/.local/bin/garden` from this directory also works.
 
 ## Notes for agents
 

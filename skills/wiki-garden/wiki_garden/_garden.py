@@ -1,9 +1,6 @@
-"""Shared helpers for Wiki Garden standalone runners (store resolution + pluggable
-LLM backend + JSON parsing). Imported by garden-maintain and garden-propose.
-
-Not executable and not on PATH; runners add their *resolved* dir to sys.path so
-this is importable even when the runner is invoked via a PATH symlink.
-"""
+"""Shared helpers for the Wiki Garden CLI (store resolution + pluggable LLM
+backend + JSON parsing). Part of the `wiki_garden` package; imported by cli.py
+and the other `_*` modules."""
 from __future__ import annotations
 
 import json
@@ -16,7 +13,7 @@ import threading
 import urllib.request
 from pathlib import Path
 
-PROMPTS = Path(__file__).resolve().parent.parent / "prompts"
+PROMPTS = Path(__file__).resolve().parent / "prompts"   # package data (wiki_garden/prompts)
 
 
 def prompt(name: str) -> str:

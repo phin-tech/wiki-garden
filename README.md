@@ -10,9 +10,10 @@ architecture and how it maps to the paper.
 
 ## Layout
 
-- **This repo**: the code — a single `garden` CLI (a Typer app run via `uv`),
-  the `/wiki-garden` and `/garden-*` commands, the subagents, the skill, and the
-  `web/` UI. Version-controlled.
+- **This repo**: the code — the `garden` CLI (a Typer app in the `wiki_garden`
+  package under `skills/wiki-garden/`, installable with `uv` or runnable via its
+  bundled launcher), the `/wiki-garden` and `/garden-*` commands, the subagents,
+  the skill, and the `web/` UI. Version-controlled.
 - **Your store** (`~/.config/wiki-garden/` by default): everything the garden
   accumulates for you. `garden` creates the skeleton on first run:
   - `raw/` — captured traces (one task each)
@@ -32,11 +33,28 @@ with that repo) — see `--scope` under [Commands](#commands).
 
 **As a skill (anyone):** Wiki Garden is packaged as a self-contained skill, so it
 installs via the skills.sh CLI — this copies the skill (with its bundled
-scripts) into `~/.claude/skills/wiki-garden/`:
+`wiki_garden` package) into `~/.claude/skills/wiki-garden/`:
 
 ```sh
 npx skills add phin-tech/wiki-garden
 ```
+
+The `garden` CLI ships inside that skill and needs no separate install: the
+bundled `scripts/garden` launcher runs via `uv` (it pulls its own `typer`), so an
+agent can call `~/.claude/skills/wiki-garden/scripts/garden <cmd>` with zero
+setup. The skill automatically prefers a `garden` on PATH when one exists.
+
+**As a `uv` tool (a real `garden` command, no clone):** for a first-class
+`garden` on your PATH, install the package straight from the repo subdirectory:
+
+```sh
+uv tool install "git+https://github.com/phin-tech/wiki-garden.git#subdirectory=skills/wiki-garden"
+garden home
+```
+
+Upgrade later with `uv tool upgrade wiki-garden`. (This gives you the CLI; run
+`npx skills add phin-tech/wiki-garden` too if you also want the `/wiki-garden`
+skill wired into your agents.)
 
 **Dev install (contributor):** run the installer once per machine. It
 symlinks the scripts onto your PATH and the slash command + subagent into
@@ -91,7 +109,7 @@ recommended.
 - `garden tend` — open a local web UI to browse and **tend** the garden: review
   staged skill proposals and tools and accept/reject them from the browser, and
   read patterns, traces, and the evolution log. Serves a compiled Svelte app
-  (built from `web/`, shipped in `skills/wiki-garden/web-dist/`) over a
+  (built from `web/`, shipped in `skills/wiki-garden/wiki_garden/web-dist/`) over a
   stdlib HTTP server — no JS toolchain needed at runtime. `--port` / `--host`
   to change the bind, `--no-open` to skip auto-opening the browser. See
   [`web/README.md`](web/README.md) for the build process.

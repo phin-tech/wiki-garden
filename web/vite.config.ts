@@ -2,10 +2,10 @@ import { defineConfig } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { fileURLToPath } from "node:url";
 
-// The compiled app is served by `garden tend` (skills/wiki-garden/scripts/_web.py)
-// from a path we don't control, so assets must be referenced relatively (base:
-// "./"). Output lands *inside the skill* at skills/wiki-garden/web-dist and is
-// committed, so end users get the UI without a JS toolchain.
+// The compiled app is served by `garden tend` (wiki_garden/_web.py) from a path we
+// don't control, so assets must be referenced relatively (base: "./"). Output lands
+// *inside the package* at skills/wiki-garden/wiki_garden/web-dist and is committed,
+// so end users get the UI without a JS toolchain.
 const kitUi = fileURLToPath(new URL("./vendor/kit-ui/lib", import.meta.url));
 
 export default defineConfig({
@@ -17,7 +17,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: "../skills/wiki-garden/web-dist",
+    outDir: "../skills/wiki-garden/wiki_garden/web-dist",
     emptyOutDir: true,
     chunkSizeWarningLimit: 1200,
   },
