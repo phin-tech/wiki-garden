@@ -13,7 +13,8 @@ garden tend $ARGUMENTS
 
 `garden tend` starts a **long-running local HTTP server** (default
 `http://127.0.0.1:8787`) and, unless `--no-open` is passed, opens it in the
-browser. Because it blocks until stopped, **run it in the background** and then
+browser. If the port is busy it moves to the next free one, so read the actual
+URL off the server's startup output rather than assuming 8787. Because it blocks until stopped, **run it in the background** and then
 report the URL to the user rather than waiting on it in the foreground.
 
 Notes:

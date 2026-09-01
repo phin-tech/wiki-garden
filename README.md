@@ -111,7 +111,8 @@ recommended.
   read patterns, traces, and the evolution log. Serves a compiled Svelte app
   (built from `web/`, shipped in `skills/wiki-garden/wiki_garden/web-dist/`) over a
   stdlib HTTP server — no JS toolchain needed at runtime. `--port` / `--host`
-  to change the bind, `--no-open` to skip auto-opening the browser. See
+  to change the bind (a busy port falls forward to the next free one; `--port 0`
+  takes any), `--no-open` to skip auto-opening the browser. See
   [`web/README.md`](web/README.md) for the build process.
 
   ![The `garden tend` web UI](docs/img/garden-tend-web.png)

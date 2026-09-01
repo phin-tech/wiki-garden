@@ -16,6 +16,7 @@ The compiled Svelte front-end (see repo-root `web/`, built into the sibling
 """
 from __future__ import annotations
 
+import errno
 import io
 import json
 import mimetypes
@@ -651,11 +652,30 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
 
+def _bind(host: str, port: int, tries: int = 20) -> ThreadingHTTPServer:
+    """Bind the requested port, falling forward to the next free one if it's busy.
+
+    Port 0 means "any free port" and is honoured as-is. After `tries` busy ports
+    in a row we let the OS pick, so tend still comes up on a crowded machine.
+    """
+    if port == 0:
+        return ThreadingHTTPServer((host, 0), Handler)
+    for candidate in range(port, port + tries):
+        try:
+            return ThreadingHTTPServer((host, candidate), Handler)
+        except OSError as exc:
+            if exc.errno not in (errno.EADDRINUSE, errno.EACCES):
+                raise
+            print(f"[wiki-garden] port {candidate} busy, trying {candidate + 1}")
+    return ThreadingHTTPServer((host, 0), Handler)
+
+
 def serve(host: str = "127.0.0.1", port: int = 8787, open_browser: bool = True) -> None:
     """Boot the tend server. Blocks until Ctrl-C."""
     st = _garden.store_root()
     _garden.ensure_skeleton(st)
-    httpd = ThreadingHTTPServer((host, port), Handler)
+    httpd = _bind(host, port)
+    port = httpd.server_address[1]
     url = f"http://{host}:{port}/"
     print(f"[wiki-garden] tending {st}")
     print(f"[wiki-garden] serving {url}  (Ctrl-C to stop)")

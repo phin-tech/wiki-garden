@@ -106,7 +106,8 @@ def init(yes: bool = typer.Option(False, "--yes", "-y", help="Accept defaults, n
 
 @app.command()
 def tend(host: str = typer.Option("127.0.0.1", "--host", help="Bind address"),
-         port: int = typer.Option(8787, "--port", help="Port"),
+         port: int = typer.Option(8787, "--port", "-p",
+                                 help="Port; falls forward to the next free one if busy (0 = any free port)"),
          no_open: bool = typer.Option(False, "--no-open", help="Don't open a browser")):
     """Open the local web UI to browse and tend the garden (accept/reject in a browser)."""
     _web.serve(host, port, open_browser=not no_open)
